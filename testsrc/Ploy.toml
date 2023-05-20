@@ -1,0 +1,10 @@
+[project]
+name = "Test code"
+
+[opts]
+verbose="Normal"
+project-file = "test.ploy"
+
+[lsp]
+log-file="lsp.log"
+

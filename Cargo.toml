@@ -1,0 +1,24 @@
+[package]
+name = "ploy"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+thin-vec="*"
+thiserror="*"
+anyhow="*"
+clap = { version = "*", features = ["derive", "color"] }
+env_logger="*"
+itertools="*"
+lazy_static = "*"
+nom = "*"
+nom_locate = "*"
+regex="*"
+logos="*"
+toml="*"
+
+serde = { version = "*", features = ["derive"] }
+serde_json = "*"
+serde_yaml = "*"
