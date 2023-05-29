@@ -3,7 +3,7 @@ name = "Test code"
 
 [opts]
 verbose="Normal"
-project-file = "test.ploy"
+project-file = "testsrc/test.ploy"
 
 [lsp]
 log-file="lsp.log"

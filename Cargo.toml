@@ -13,11 +13,10 @@ clap = { version = "*", features = ["derive", "color"] }
 env_logger="*"
 itertools="*"
 lazy_static = "*"
-nom = "*"
-nom_locate = "*"
 regex="*"
 logos="*"
 toml="*"
+unraveler  = {path = "crates/unraveler"}
 
 serde = { version = "*", features = ["derive"] }
 serde_json = "*"

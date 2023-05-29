@@ -1,7 +1,7 @@
 use logos::Logos;
 
 #[derive(Logos, Copy, Clone, Debug, PartialEq, Eq)]
-#[logos(skip r"[ \t\f]+")]
+#[logos(skip r"[ \t\f\n]+")]
 pub enum TokenKind {
     Error,
 
@@ -107,3 +107,61 @@ pub enum TokenKind {
     #[token("#t")]
     True,
 }
+
+impl From<std::ops::Range<usize>> for Location {
+    fn from(value: std::ops::Range<usize>) -> Self {
+        Self {
+            start : value.start,
+            len: value.len()
+        }
+    }
+}
+
+#[derive(Clone, Debug, Copy, PartialEq)]
+pub struct Location {
+    pub start: usize,
+    pub len: usize,
+}
+
+impl Default for Location {
+    fn default() -> Self {
+        Self {
+            start: 0,
+            len: 0,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ParseText<'a> {
+    txt: &'a str,
+}
+
+
+impl<'a> ParseText<'a> {
+    pub fn new(txt: &'a str) -> Self {
+        Self { txt }
+    }
+}
+#[derive(Clone, Debug, Copy, PartialEq)]
+pub struct FragementLocation<X: Clone> {
+    pub loc: Location,
+    pub extra: X,
+}
+
+#[derive(Clone, Debug, Copy, PartialEq)]
+pub struct Token<X: Clone> {
+    pub kind: TokenKind,
+    pub location: FragementLocation<X>,
+}
+
+fn to_tokens_kinds(program_txt: &str) -> Vec<(TokenKind, std::ops::Range<usize>)> {
+    TokenKind::lexer(program_txt)
+        .spanned()
+        .map(|(tok_res, pos)| match tok_res {
+            Ok(kind) => (kind, pos),
+            Err(_) => (TokenKind::Error, pos),
+        })
+        .collect()
+}
+

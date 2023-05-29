@@ -1,0 +1,7 @@
+(def x "wooo")
+(def y 1.0)
+
+(defn hello [a b c]
+  (println (* x y))
+  (println a))
+

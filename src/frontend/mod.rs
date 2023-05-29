@@ -1,4 +1,7 @@
 /// Compiler front end
 /// tokenising and parsing into an AST
-
 pub mod tokens;
+pub mod ast;
+pub mod error;
+pub mod ploytokens;
+

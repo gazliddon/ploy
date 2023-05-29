@@ -13,7 +13,7 @@ pub enum PloyErrorKind {
     #[error(transparent)]
     FileError(#[from] FileErrorKind),
     #[error(transparent)]
-    Other(#[from] anyhow::Error),
-    #[error(transparent)]
     Cli(#[from] CliErrorKind),
+    #[error(transparent)]
+    Other(#[from] anyhow::Error),
 }
