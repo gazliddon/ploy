@@ -37,8 +37,6 @@ pub trait Tag<OTHER, E>: Sized {
     fn tag(&self, other: OTHER) -> Result<(Self, Self), E>;
 }
 
-
-
 impl<SP, OTHER, E> Tag<OTHER, E> for SP
 where
     SP: Collection + Splitter<E>,
@@ -52,7 +50,7 @@ where
     E: ParseError<SP>,
 {
     fn tag(&self, other: OTHER) -> Result<(Self, Self), E> {
-        if other.length() >= self.length() {
+        if other.length() > self.length() {
             return Err(E::from_error_kind(self, ParseErrorKind::NoMatch));
         }
 

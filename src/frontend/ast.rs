@@ -1,6 +1,6 @@
 use thin_vec::{thin_vec, ThinVec};
 
-use unraveler::{alt, is_a, many0, pair, tag, tuple, wrapped, ParseError, Collection, Item};
+use unraveler::{alt, is_a, many0, pair, tag, tuple, wrapped, Collection, Item, ParseError};
 
 use super::{
     error::{FrontEndError, PResult, PlError},
@@ -69,14 +69,11 @@ pub fn parse_bool(input: Span) -> PResult<AstNode> {
     Ok((rest, ret))
 }
 
-fn parse_kind<'a,K>(
-    input: Span<'a>,
-    is: K,
-    node_kind: AstNodeKind,
-) -> PResult<'a, AstNode> 
-where 
-    K : Collection,
-    <K as Collection>::Item : PartialEq + Copy + Item, TokenKind: PartialEq<<<K as Collection>::Item as Item>::Kind>,
+fn parse_kind<'a, K>(input: Span<'a>, is: K, node_kind: AstNodeKind) -> PResult<'a, AstNode>
+where
+    K: Collection,
+    <K as Collection>::Item: PartialEq + Copy + Item,
+    TokenKind: PartialEq<<<K as Collection>::Item as Item>::Kind>,
 {
     let (rest, _matched) = is_a(is)(input)?;
     let ret = AstNode::from_spans(node_kind, input, rest);
@@ -116,40 +113,34 @@ pub fn parse_array(input: Span) -> PResult<AstNode> {
 pub fn parse_atom(input: Span) -> PResult<AstNode> {
     use TokenKind::*;
     let (rest, matched) = alt((
-        parse_list,
-        parse_array,
+        parse_symbol,
         parse_number,
         parse_string,
         parse_bool,
-        parse_symbol,
-        parse_null,
+        parse_list,
+        parse_array,
     ))(input)?;
 
     Ok((rest, matched))
 }
 
 pub fn parse_program(input: Span) -> PResult<AstNode> {
-    let (rest,matched) = many0(parse_list)(input)?;
+    let (rest, matched) = many0(parse_list)(input)?;
     let x = AstNode::from_spans(AstNodeKind::Program, input, rest).with_children(matched);
-    Ok((rest,x))
+    Ok((rest, x))
 }
 
 pub struct Ast {
     source: String,
 }
 
-pub fn to_ast(tokes: Vec<Token>) -> AstNode {
-    let tokens  = Span::new(0,&tokes);
-    let prog = parse_program(tokens).unwrap();
-    prog.1
+pub fn to_ast<'a>(tokes: &'a Vec<Token>) -> PResult<'a, AstNode> {
+    let tokens = Span::new(0, tokes);
+    let (rest, matched) = parse_program(tokens)?;
+    Ok((rest, matched))
 }
 
 mod test {
     use super::*;
-
-    fn test() {
-
-    }
-
-
+    fn test() {}
 }

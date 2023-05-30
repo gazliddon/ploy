@@ -18,7 +18,7 @@ pub trait Item: Copy {
     fn get_kind(&self) -> Self::Kind;
 }
 
-// impl<X> Item for X 
+// impl<X> Item for X
 //     where X: Copy + PartialEq
 // {
 //     type Kind = X;
@@ -37,14 +37,12 @@ where
     span: &'a [I],   // this span
 }
 
-
 impl<'a, I> Span<'a, I>
 where
     I: Item,
 {
-
     pub fn get_range(&self) -> std::ops::Range<usize> {
-        self.position..self.position+self.len()
+        self.position..self.position + self.len()
     }
 
     pub fn from_slice(text: &'a [I]) -> Self {
@@ -67,11 +65,11 @@ where
         self.span.is_empty()
     }
 
-    pub fn iter(&self) -> impl Iterator<Item=&I>+ '_ {
+    pub fn iter(&self) -> impl Iterator<Item = &I> + '_ {
         self.span.iter()
     }
 
-    pub fn kinds_iter(&self) -> impl Iterator<Item=I::Kind> + '_ {
+    pub fn kinds_iter(&self) -> impl Iterator<Item = I::Kind> + '_ {
         self.span.iter().map(|i| i.get_kind())
     }
 
@@ -83,16 +81,11 @@ where
         }
     }
 
-    pub fn skip(&self, n: usize) -> Result<Self, ParseErrorKind> {
+    pub fn drop(&self, n: usize) -> Result<Self, ParseErrorKind> {
         if n > self.len() {
             Err(ParseErrorKind::SkippedTooMany.into())
         } else {
-            let ret = Self {
-                position: self.position + n,
-                span: &self.span[n..],
-            };
-
-            Ok(ret)
+            Ok(Self::new(self.position + 1, &self.span[n..]))
         }
     }
 
@@ -100,9 +93,7 @@ where
         if n > self.len() {
             Err(ParseErrorKind::IllegalSplitIndex.into())
         } else {
-            let matched = self.take(n)?;
-            let rest = self.skip(n)?;
-            Ok((rest, matched))
+            Ok((self.drop(n)?, self.take(n)?))
         }
     }
 

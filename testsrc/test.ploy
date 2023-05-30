@@ -1,3 +1,4 @@
 (def x "wooo" [ a a a (a)])
-(def y last)
+()
+(def x "wooo" [ a a a (a)])
 

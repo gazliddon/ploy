@@ -24,13 +24,9 @@ fn main() -> anyhow::Result<()> {
 
     let program_txt = std::fs::read_to_string(&opts.project_file).context("Can't load project file")?;
     let tokes = tokenize(&program_txt);
-    let ast = to_ast(tokes.clone());
+    let ast = to_ast(&tokes);
 
     println!("{:#?}", ast);
-
-    for (k,frag) in to_kinds(&tokes, &program_txt) {
-    println!("{k:?} {frag}");
-    }
 
     Ok(())
 }

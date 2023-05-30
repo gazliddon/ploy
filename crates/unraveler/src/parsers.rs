@@ -11,9 +11,9 @@ where
     I: Clone,
     E: ParseError<I>,
 {
-    move |input: I| {
+    move |mut i: I| {
         let mut out = vec![];
-        let mut i = input.clone();
+
         loop {
             if let Ok((rest, matched)) = p.parse(i.clone()) {
                 i = rest;
@@ -38,8 +38,8 @@ where
     P2: Parser<I, O2, E>,
     E: ParseError<I>,
 {
-    move |input: I| {
-        let (rest, matched_1) = first.parse(input)?;
+    move |rest: I| {
+        let (rest, matched_1) = first.parse(rest)?;
         let (rest, matched_2) = second.parse(rest)?;
         Ok((rest, (matched_1, matched_2)))
     }
@@ -76,8 +76,8 @@ where
     E: ParseError<SP>,
     P: Parser<SP, O, E>,
 {
-    move |input: SP| {
-        let (rest, matched) = input.tag(open)?;
+    move |rest: SP| {
+        let (rest, _) = rest.tag(open)?;
         let (rest, matched) = p.parse(rest)?;
         let (rest, _) = rest.tag(close)?;
         Ok((rest, matched))
@@ -101,7 +101,6 @@ where
     }
 }
 
-
 pub fn any<SP, E>() -> impl FnMut(SP) -> Result<(SP, SP), E>
 where
     SP: Splitter<E>,
@@ -122,7 +121,7 @@ pub fn is_a<SP,C,E>(isa: C) -> impl FnMut(SP) -> Result<(SP, <<SP as Collection>
 {
     let r = move |input : SP| -> Result<( SP,<<SP as Collection>::Item as Item>::Kind ),E>{
         if input.length() == 0 {
-            panic!()
+            Err(ParseError::from_error_kind(&input, ParseErrorKind::NoMatch))
         } else {
             let k = input.at(0).map(|x| x.get_kind());
 
