@@ -11,6 +11,8 @@ pub enum ParseErrorKind {
     IllegalSplitIndex,
     #[error("No match")]
     NoMatch,
+    #[error("Needed one or more matches")]
+    NeededOneOrMore,
 }
 
 pub type PResult<'a, I, O = Span<'a, I>> = Result<(Span<'a, I>, O), ParseErrorKind>;

@@ -26,6 +26,31 @@ where
         Ok((i, out))
     }
 }
+pub fn many1<I, O, E, P>(mut p: P) -> impl FnMut(I) -> Result<(I, Vec<O>), E>
+where
+    P: Parser<I, O, E>,
+    I: Clone,
+    E: ParseError<I>,
+{
+    move |mut i: I| {
+        let mut out = vec![];
+
+        loop {
+            if let Ok((rest, matched)) = p.parse(i.clone()) {
+                i = rest;
+                out.push(matched)
+            } else {
+                break;
+            }
+        }
+
+        if out.is_empty() {
+            Err(ParseError::from_error_kind(&i, ParseErrorKind::NeededOneOrMore))
+        } else {
+            Ok((i, out))
+        }
+    }
+}
 
 pub fn preceded<I, O1, O2, P1, P2, E>(
     mut first: P1,
