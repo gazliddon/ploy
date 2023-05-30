@@ -27,7 +27,21 @@ where
     }
 }
 
-trait Seq {}
+pub fn preceded<I, O1, O2, P1, P2, E>(
+    mut first: P1,
+    mut second: P2,
+) -> impl FnMut(I) -> Result<(I, O2), E>
+where
+    P1: Parser<I, O1, E>,
+    P2: Parser<I, O2, E>,
+    E: ParseError<I>,
+{
+    move |rest: I| {
+        let (rest, _) = first.parse(rest)?;
+        let (rest, matched_2) = second.parse(rest)?;
+        Ok((rest, matched_2))
+    }
+}
 
 pub fn pair<I, O1, O2, P1, P2, E>(
     mut first: P1,
@@ -44,6 +58,7 @@ where
         Ok((rest, (matched_1, matched_2)))
     }
 }
+
 pub fn sep_pair<I, O1, O2, OS, P1, P2, PS, E>(
     mut first: P1,
     mut sep: PS,

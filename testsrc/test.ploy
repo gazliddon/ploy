@@ -1,4 +1,6 @@
 (def x "wooo" [ a a a (a)])
-()
-(def x "wooo" [ a a a (a)])
+(y y::y)
+'(def x::x true "wooo" [ a a a (a)])
+
+{ x : 1 }
 

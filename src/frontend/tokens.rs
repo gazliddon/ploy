@@ -101,11 +101,14 @@ pub enum TokenKind {
     #[token("`")]
     BackTick,
 
-    #[token("#f")]
+    #[token("false")]
     False,
 
-    #[token("#t")]
+    #[token("true")]
     True,
+
+    #[token(":")]
+    Colon,
 }
 
 impl From<std::ops::Range<usize>> for Location {

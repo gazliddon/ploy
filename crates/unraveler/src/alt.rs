@@ -1,4 +1,4 @@
-use crate::{ ParseError, Parser, ParseErrorKind };
+use crate::{ParseError, ParseErrorKind, Parser};
 use paste::paste;
 
 pub trait Alt<I, O, E> {
@@ -51,4 +51,11 @@ impl_alt_tuple!(A B C D);
 impl_alt_tuple!(A B C D E);
 impl_alt_tuple!(A B C D E F);
 impl_alt_tuple!(A B C D E F G);
-
+impl_alt_tuple!(A B C D E F G H);
+impl_alt_tuple!(A B C D E F G H I);
+impl_alt_tuple!(A B C D E F G H I J);
+impl_alt_tuple!(A B C D E F G H I J K);
+impl_alt_tuple!(A B C D E F G H I J K L);
+impl_alt_tuple!(A B C D E F G H I J K L M);
+impl_alt_tuple!(A B C D E F G H I J K L M N);
+impl_alt_tuple!(A B C D E F G H I J K L M N O);
