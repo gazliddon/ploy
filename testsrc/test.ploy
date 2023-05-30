@@ -1,7 +1,3 @@
-(def x "wooo")
-(def y 1.0)
-
-(defn hello [a b c]
-  (println (* x y))
-  (println a))
+(def x "wooo" [ a a a (a)])
+(def y last)
 

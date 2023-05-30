@@ -19,6 +19,22 @@ impl unraveler::Item for TokenKind {
     }
 }
 
+impl unraveler::Collection for TokenKind {
+    type Item = TokenKind;
+
+    fn at<'a>(&'a self, index: usize) -> Option<&'a Self::Item> {
+        if index > 0 {
+            None
+        } else {
+            Some(self)
+        }
+    }
+
+    fn length(&self) -> usize {
+        1
+    }
+}
+
 fn to_tokens_kinds(program_txt: &str) -> Vec<(TokenKind, std::ops::Range<usize>)> {
     TokenKind::lexer(program_txt)
         .spanned()
@@ -44,6 +60,5 @@ fn to_tokens<'a>(program_txt: &'a str) -> Vec<Token> {
 
 pub fn tokenize(program_txt: &str) -> Vec<Token> {
     let tokes = to_tokens(program_txt);
-    println!("{tokes:#?}");
     tokes
 }

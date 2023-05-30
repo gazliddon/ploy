@@ -44,6 +44,45 @@ where
         Ok((rest, (matched_1, matched_2)))
     }
 }
+pub fn sep_pair<I, O1, O2, OS, P1, P2, PS, E>(
+    mut first: P1,
+    mut sep: PS,
+    mut second: P2,
+) -> impl FnMut(I) -> Result<(I, (O1, O2)), E>
+where
+    P1: Parser<I, O1, E>,
+    P2: Parser<I, O2, E>,
+    PS: Parser<I, OS, E>,
+    E: ParseError<I>,
+{
+    move |input: I| {
+        let (rest, matched_1) = first.parse(input)?;
+        let (rest, _) = sep.parse(rest)?;
+        let (rest, matched_2) = second.parse(rest)?;
+        Ok((rest, (matched_1, matched_2)))
+    }
+}
+
+pub fn wrapped<SP, OTHER, E,P,O>(open: OTHER, mut p : P, close: OTHER) -> impl FnMut(SP) -> Result<(SP, O), E>
+where
+    SP: Collection + Splitter<E>,
+    <SP as Collection>::Item: Item,
+    <<SP as Collection>::Item as Item>::Kind:
+        PartialEq<<<OTHER as Collection>::Item as Item>::Kind>,
+
+    OTHER: Collection + Copy,
+    <OTHER as Collection>::Item: Item + Copy,
+
+    E: ParseError<SP>,
+    P: Parser<SP, O, E>,
+{
+    move |input: SP| {
+        let (rest, matched) = input.tag(open)?;
+        let (rest, matched) = p.parse(rest)?;
+        let (rest, _) = rest.tag(close)?;
+        Ok((rest, matched))
+    }
+}
 
 pub fn tag<SP, OTHER, E>(tag: OTHER) -> impl FnMut(SP) -> Result<(SP, SP), E>
 where
@@ -73,11 +112,35 @@ where
 
 pub fn is_a<SP,C,E>(isa: C) -> impl FnMut(SP) -> Result<(SP, <<SP as Collection>::Item as Item>::Kind), E> 
    where 
-    SP: Collection,
+    SP: Collection + Splitter<E>,
     <SP as Collection>::Item : PartialEq + Copy + Item,
+    C: Collection,
+    <C as Collection>::Item : PartialEq + Copy + Item,
+    <<SP as Collection>::Item as Item>::Kind:
+        PartialEq<<<C as Collection>::Item as Item>::Kind>,
+    E: ParseError<SP>,
 {
-    let r = move |input : SP| {
-        panic!()
+    let r = move |input : SP| -> Result<( SP,<<SP as Collection>::Item as Item>::Kind ),E>{
+        if input.length() == 0 {
+            panic!()
+        } else {
+            let k = input.at(0).map(|x| x.get_kind());
+
+            for i in 0..isa.length() {
+                let ik = isa.at(i).map(|x|x.get_kind());
+
+               match (k,ik ) {
+                    (Some(a), Some(b)) => if a==b {
+                        let r = input.drop(1).map(|x| (x,a)).map_err(|_| ParseError::from_error_kind(&input, ParseErrorKind::NoMatch));
+                        return r;
+
+                    },
+                    _ => panic!()
+                }
+            }
+
+            Err(ParseError::from_error_kind(&input, ParseErrorKind::NoMatch))
+        }
     };
 
     r

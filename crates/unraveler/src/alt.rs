@@ -50,4 +50,5 @@ impl_alt_tuple!(A B C);
 impl_alt_tuple!(A B C D);
 impl_alt_tuple!(A B C D E);
 impl_alt_tuple!(A B C D E F);
+impl_alt_tuple!(A B C D E F G);
 

@@ -1,10 +1,15 @@
 use crate::span::Span;
+use thiserror::Error;
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Error,Copy, Clone, Debug, PartialEq, )]
 pub enum ParseErrorKind {
+    #[error("not enough to take")]
     TookTooMany,
+    #[error("not enough to skip")]
     SkippedTooMany,
+    #[error("not enough to split")]
     IllegalSplitIndex,
+    #[error("No match")]
     NoMatch,
 }
 

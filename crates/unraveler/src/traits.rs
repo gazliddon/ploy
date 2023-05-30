@@ -21,12 +21,9 @@ where
 {
     fn split_at(&self, pos: usize) -> Result<(Self, Self), E>;
 
-    fn take(&self, pos: usize) -> Result<Self, E> {
-        self.split_at(pos).map(|a| a.0)
-    }
 
     fn drop(&self, pos: usize) -> Result<Self, E> {
-        self.split_at(pos).map(|a| a.1)
+        self.split_at(pos).map(|a| a.0)
     }
 }
 

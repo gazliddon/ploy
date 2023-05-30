@@ -122,6 +122,11 @@ pub struct Location {
     pub start: usize,
     pub len: usize,
 }
+impl Location {
+    pub fn as_range(&self) -> std::ops::Range<usize> {
+        self.start..self.start+self.len
+    }
+}
 
 impl Default for Location {
     fn default() -> Self {
@@ -130,6 +135,7 @@ impl Default for Location {
             len: 0,
         }
     }
+
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
