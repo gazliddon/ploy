@@ -1,6 +1,7 @@
 use crate::error::*;
 use crate::traits::*;
 use crate::span::Item;
+use super::tuple::tuple;
 
 // use thin_vec::{thin_vec, ThinVec};
 
@@ -44,7 +45,6 @@ where
     }
 }
 
-
 pub fn tag<SP, OTHER, E>(tag: OTHER) -> impl FnMut(SP) -> Result<(SP, SP), E>
 where
     SP: Collection + Splitter<E>,
@@ -61,6 +61,7 @@ where
         Ok((rest, matched))
     }
 }
+
 
 pub fn any<SP, E>() -> impl FnMut(SP) -> Result<(SP, SP), E>
 where

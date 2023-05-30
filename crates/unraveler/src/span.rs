@@ -37,10 +37,12 @@ where
     span: &'a [I],   // this span
 }
 
+
 impl<'a, I> Span<'a, I>
 where
     I: Item,
 {
+
     pub fn get_range(&self) -> std::ops::Range<usize> {
         self.position..self.position+self.len()
     }

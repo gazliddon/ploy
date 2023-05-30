@@ -1,46 +1,11 @@
-use std::fmt::Binary;
-use std::iter::{Copied, Enumerate};
-
-use unraveler::{alt, pair, tag};
-use unraveler::{many0, ParseError};
+use unraveler::{alt, is_a, many0, pair, tag, tuple};
 
 use super::{
-    error::FrontEndError,
+    error::{FrontEndError, PResult, PlError},
     ploytokens::Token,
     tokens::{ParseText, TokenKind},
+    Span,
 };
-
-pub type Span<'a> = unraveler::Span<'a, Token<'a>>;
-
-impl<'a> unraveler::Item for Token<'a> {
-    type Kind = TokenKind;
-
-    fn get_kind(&self) -> Self::Kind {
-        self.kind
-    }
-}
-
-impl unraveler::Item for TokenKind {
-    type Kind = TokenKind;
-
-    fn get_kind(&self) -> Self::Kind {
-        *self
-    }
-}
-
-type PResult<'a, O, E = PlError> = Result<(Span<'a>, O), E>;
-
-pub struct PlError {}
-
-impl<'a> unraveler::ParseError<Span<'a>> for PlError {
-    fn from_error_kind(_input: &Span<'a>, _kind: unraveler::ParseErrorKind) -> Self {
-        todo!()
-    }
-
-    fn append(_input: &Span<'a>, _kind: unraveler::ParseErrorKind, _other: Self) -> Self {
-        todo!()
-    }
-}
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum AstNodeKind {
@@ -48,16 +13,33 @@ pub enum AstNodeKind {
     Number(TokenKind),
     List,
     Null,
+    Bool(bool),
+    QuotedString,
 }
 
-#[derive(Copy, Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug)]
 pub struct AstNode {
     kind: AstNodeKind,
+    start: usize,
+    len: usize,
 }
 
 impl AstNode {
-    pub fn new(_kind: AstNodeKind, _span: Span) -> Self {
-        panic!()
+    pub fn new(kind: AstNodeKind, start: usize ,len: usize) -> Self {
+        Self {
+            kind,
+            start,
+            len
+        }
+    }
+    pub fn from_spans(kind: AstNodeKind, input: Span, rest: Span) -> Self {
+        let input = input.get_range();
+        let rest =  rest.get_range();
+        Self {
+            kind,
+            start: input.start,
+            len: input.start + (rest.start - input.start)
+        }
     }
 }
 
@@ -65,29 +47,52 @@ pub fn parse_number(input: Span) -> PResult<AstNode> {
     use unraveler::is_a;
     use TokenKind::*;
     let (rest, _matched) = is_a([DecNumber, HexNumber, BinNumber])(input)?;
-    let ret = AstNode::new(AstNodeKind::Number(DecNumber), rest);
+    let ret = AstNode::from_spans(AstNodeKind::Number(DecNumber), input,rest);
     Ok((rest, ret))
 }
 
-pub fn parse_string(_input: Span) -> PResult<AstNode> {
-    panic!()
+pub fn parse_bool(input: Span) -> PResult<AstNode> {
+    use TokenKind::*;
+    let (rest, matched) = is_a([True, False])(input)?;
+    let ret = AstNode::from_spans(AstNodeKind::Bool(matched == True), input,rest);
+    Ok((rest, ret))
 }
 
-pub fn parse_bool(_input: Span) -> PResult<AstNode> {
-    panic!()
-}
-
-pub fn parse_symbol(_input: Span) -> PResult<AstNode> {
-    panic!()
+fn parse_single<'a>(
+    input: Span<'a>,
+    is: &[TokenKind],
+    node_kind: AstNodeKind,
+) -> PResult<'a, AstNode> {
+    let (rest, _matched) = is_a(is)(input)?;
+    let ret = AstNode::from_spans(node_kind, input,rest);
+    Ok((rest, ret))
 }
 
 pub fn parse_null(input: Span) -> PResult<AstNode> {
     use TokenKind::*;
     let (rest, _) = pair(tag([OpenBracket]), tag([CloseBracket]))(input)?;
-    Ok((rest, AstNode::new(AstNodeKind::Null, input)))
+    Ok((rest, AstNode::from_spans(AstNodeKind::Null, input, rest)))
 }
 
-pub fn parse_atom(_input: Span) -> PResult<AstNode> {
+pub fn parse_symbol(input: Span) -> PResult<AstNode> {
+    use TokenKind::*;
+    parse_single(input, &[Identifier, FqnIdentifier], AstNodeKind::Symbol)
+}
+
+pub fn parse_string(input: Span) -> PResult<AstNode> {
+    use TokenKind::*;
+    parse_single(input, &[QuotedString], AstNodeKind::QuotedString)
+}
+
+pub fn parse_list(input: Span) -> PResult<AstNode> {
+    use TokenKind::*;
+    let (rest, (_, _list, _)) =
+        tuple((tag([OpenBracket]), many0(parse_atom), tag([CloseBracket])))(input)?;
+    let x = AstNode::from_spans(AstNodeKind::List, input, rest);
+    Ok((rest, x))
+}
+
+pub fn parse_atom(input: Span) -> PResult<AstNode> {
     use TokenKind::*;
 
     let (rest, matched) = alt((
@@ -97,22 +102,9 @@ pub fn parse_atom(_input: Span) -> PResult<AstNode> {
         parse_symbol,
         parse_null,
         parse_list,
-    ))(_input)?;
+    ))(input)?;
 
     Ok((rest, matched))
-}
-
-pub fn parse_list(_input: Span) -> PResult<AstNode> {
-    use TokenKind::*;
-    let rest = _input;
-
-    let (rest, _) = tag([OpenBracket])(rest)?;
-    let (rest, _list) = many0(parse_atom)(rest)?;
-    let (rest, _) = tag([CloseBracket])(rest)?;
-
-    let x = AstNode::new(AstNodeKind::List, _input);
-
-    Ok((rest, x))
 }
 
 pub struct Ast {

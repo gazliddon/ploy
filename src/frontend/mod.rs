@@ -5,3 +5,5 @@ pub mod ast;
 pub mod error;
 pub mod ploytokens;
 
+pub type Span<'a> = unraveler::Span<'a, ploytokens::Token<'a>>;
+

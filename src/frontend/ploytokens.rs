@@ -3,6 +3,22 @@ use logos::Logos;
 
 pub type Token<'a> = super::tokens::Token<ParseText<'a>>;
 
+impl<'a> unraveler::Item for Token<'a> {
+    type Kind = TokenKind;
+
+    fn get_kind(&self) -> Self::Kind {
+        self.kind
+    }
+}
+
+impl unraveler::Item for TokenKind {
+    type Kind = TokenKind;
+
+    fn get_kind(&self) -> Self::Kind {
+        *self
+    }
+}
+
 fn to_tokens_kinds(program_txt: &str) -> Vec<(TokenKind, std::ops::Range<usize>)> {
     TokenKind::lexer(program_txt)
         .spanned()
