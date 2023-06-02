@@ -1,4 +1,4 @@
-use crate::error::{PResult, ParseError, ParseErrorKind};
+use crate::error::{PResult, ParseError, ParseErrorKind, Severity};
 use crate::traits::*;
 
 pub trait Item: Copy {
@@ -33,8 +33,8 @@ pub struct Span<'a, I>
 where
     I: Item,
 {
-    position: usize, // index into parent doc
-    span: &'a [I],   // this span
+    pub position: usize, // index into parent doc
+    pub span: &'a [I],   // this span
 }
 
 impl<'a, I> Span<'a, I>
@@ -128,7 +128,7 @@ where
 {
     fn split_at(&self, pos: usize) -> Result<(Self, Self), E> {
         self.split(pos)
-            .map_err(|e| ParseError::from_error_kind(self, e))
+            .map_err(|e| ParseError::from_error_kind(self, e, Severity::Error))
     }
 }
 

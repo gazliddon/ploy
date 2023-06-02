@@ -1,4 +1,4 @@
-use crate::{ParseError, ParseErrorKind, Parser};
+use crate::{ParseError, ParseErrorKind, Parser, Severity};
 use paste::paste;
 
 pub trait Alt<I, O, E> {
@@ -37,7 +37,7 @@ macro_rules! impl_alt_tuple {
 
                 )*;
 
-                Err(EX::from_error_kind(&i,ParseErrorKind::NoMatch))
+                Err(EX::from_error_kind(&i,ParseErrorKind::NoMatch, Severity::Error))
                 }
             }
         }
@@ -59,3 +59,4 @@ impl_alt_tuple!(A B C D E F G H I J K L);
 impl_alt_tuple!(A B C D E F G H I J K L M);
 impl_alt_tuple!(A B C D E F G H I J K L M N);
 impl_alt_tuple!(A B C D E F G H I J K L M N O);
+

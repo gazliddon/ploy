@@ -1,10 +1,7 @@
-(def x "wooo" '(a b c))
-(y y::y)
-(def x::x true "wooo" [ a a a (a)])
+(if true (+ a b)
+            (* a b)
+            (w))
 
-(fn x [a b c]
-    (+ a b))
 
-{ x : 1 }
 
 

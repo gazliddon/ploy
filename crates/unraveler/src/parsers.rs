@@ -45,7 +45,7 @@ where
         }
 
         if out.is_empty() {
-            Err(ParseError::from_error_kind(&i, ParseErrorKind::NeededOneOrMore))
+            Err(ParseError::from_error_kind(&i, ParseErrorKind::NeededOneOrMore, Severity::Error))
         } else {
             Ok((i, out))
         }
@@ -84,6 +84,43 @@ where
     }
 }
 
+pub fn opt<I, O, E,P>(
+    mut first: P,
+) -> impl FnMut(I) -> Result<(I, Option<O>), E>
+where
+    P: Parser<I, O, E>,
+    E: ParseError<I>,
+    I : Clone,
+{
+    move |input: I| {
+        let ret = first.parse(input.clone());
+        if ret.is_ok() {
+            ret.map(|(r,m)| (r,Some(m)))
+        } else {
+            Ok((input,None))
+        }
+    }
+}
+
+pub fn cut<I, O, E,P>(
+    mut first: P,
+) -> impl FnMut(I) -> Result<(I, O), E>
+where
+    P: Parser<I, O, E>,
+    E: ParseError<I>,
+{
+    move |input: I| {
+        let ret = first.parse(input);
+        match ret {
+            Ok(r) => Ok(r),
+            Err(mut e ) => {
+                e.set_severity(Severity::Fatal);
+                Err(e)
+            }
+        }
+    }
+}
+
 pub fn sep_pair<I, O1, O2, OS, P1, P2, PS, E>(
     mut first: P1,
     mut sep: PS,
@@ -102,6 +139,7 @@ where
         Ok((rest, (matched_1, matched_2)))
     }
 }
+
 
 pub fn wrapped<SP, OTHER, E,P,O>(open: OTHER, mut p : P, close: OTHER) -> impl FnMut(SP) -> Result<(SP, O), E>
 where
@@ -161,7 +199,7 @@ pub fn is_a<SP,C,E>(isa: C) -> impl FnMut(SP) -> Result<(SP, <<SP as Collection>
 {
     let r = move |input : SP| -> Result<( SP,<<SP as Collection>::Item as Item>::Kind ),E>{
         if input.length() == 0 {
-            Err(ParseError::from_error_kind(&input, ParseErrorKind::NoMatch))
+            Err(ParseError::from_error_kind(&input, ParseErrorKind::NoMatch, Severity::Error), )
         } else {
             let k = input.at(0).map(|x| x.get_kind());
 
@@ -170,7 +208,7 @@ pub fn is_a<SP,C,E>(isa: C) -> impl FnMut(SP) -> Result<(SP, <<SP as Collection>
 
                match (k,ik ) {
                     (Some(a), Some(b)) => if a==b {
-                        let r = input.drop(1).map(|x| (x,a)).map_err(|_| ParseError::from_error_kind(&input, ParseErrorKind::NoMatch));
+                        let r = input.drop(1).map(|x| (x,a)).map_err(|_| ParseError::from_error_kind(&input, ParseErrorKind::NoMatch, Severity::Error));
                         return r;
 
                     },
@@ -178,7 +216,7 @@ pub fn is_a<SP,C,E>(isa: C) -> impl FnMut(SP) -> Result<(SP, <<SP as Collection>
                 }
             }
 
-            Err(ParseError::from_error_kind(&input, ParseErrorKind::NoMatch))
+            Err(ParseError::from_error_kind(&input, ParseErrorKind::NoMatch, Severity::Error))
         }
     };
 

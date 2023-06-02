@@ -143,7 +143,7 @@ impl Default for Location {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ParseText<'a> {
-    txt: &'a str,
+    pub txt: &'a str,
 }
 
 
