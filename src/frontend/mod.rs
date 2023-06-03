@@ -1,12 +1,14 @@
-use symbols::SymbolTree;
-
 /// Compiler front end
 /// tokenising and parsing into an AST
-pub mod tokens;
-pub mod ast;
-pub mod error;
-pub mod ploytokens;
-pub mod parsers;
+mod tokens;
+mod ploytokens;
+mod parsers;
+mod syntax;
+mod span;
+mod ast;
+mod error;
 
-pub type Span<'a> = unraveler::Span<'a, ploytokens::Token<'a>>;
+mod prelude;
+
+pub use prelude::*;
 

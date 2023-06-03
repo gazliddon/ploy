@@ -128,7 +128,7 @@ where
 {
     fn split_at(&self, pos: usize) -> Result<(Self, Self), E> {
         self.split(pos)
-            .map_err(|e| ParseError::from_error_kind(self, e, Severity::Error))
+            .map_err(|e| ParseError::from_error(self, e, ))
     }
 }
 

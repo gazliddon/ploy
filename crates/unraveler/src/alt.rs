@@ -34,10 +34,9 @@ macro_rules! impl_alt_tuple {
                             return res;
                         }
                     };
-
                 )*;
 
-                Err(EX::from_error_kind(&i,ParseErrorKind::NoMatch, Severity::Error))
+                Err(EX::from_error(&i,ParseErrorKind::NoMatch))
                 }
             }
         }

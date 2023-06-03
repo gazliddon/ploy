@@ -1,16 +1,20 @@
 use thin_vec::{thin_vec, ThinVec};
+
 use unraveler::{
     alt, is_a, many0, many1, pair, preceded, sep_pair, tag, tuple, wrapped, Collection, Item,
     ParseError,
 };
 
+use crate::symbols::ScopeId;
+
 use super::{
-    error::{FrontEndError, PResult, PlError},
+    error::FrontEndError,
     parsers::ParseNode,
-    ploytokens::Token,
     tokens::{ParseText, TokenKind},
-    Span,
 };
+
+use super::prelude::*;
+
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum AstNodeKind {
@@ -38,18 +42,36 @@ pub enum AstNodeKind {
     And,
     Or,
     Do,
-    Macro
+    Macro,
+    SetScope(ScopeId),
+}
+
+impl AstNodeKind {
+    pub fn creates_new_scope(&self) -> bool {
+        match self {
+            AstNodeKind::Lambda | AstNodeKind::Let => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_special(&self) -> bool {
+        use AstNodeKind::*;
+        match self {
+            Define | Lambda | If | Let | Cond | And | Or | Do | Macro => true,
+            _ => false,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct AstNode {
     pub kind: AstNodeKind,
     pub token_range: std::ops::Range<usize>,
-    pub text_range : std::ops::Range<usize>,
+    pub text_range: std::ops::Range<usize>,
 }
 
 impl AstNode {
-    pub fn from_parse_node(node: ParseNode, _tokes: &[Token]) -> Self {
+    fn from_parse_node(node: ParseNode, _tokes: &[Token]) -> Self {
         let tokes_range = &_tokes[node.range.clone()];
         let start_t = &tokes_range.first().unwrap().location.loc;
         let end_t = &tokes_range.last().unwrap().location.loc;
@@ -106,7 +128,8 @@ pub fn to_ast<'a>(tokes: &'a Vec<Token>) -> Result<Ast, PlError> {
     let (rest, matched) = super::parsers::parse_program(tokens)?;
 
     if !rest.is_empty() {
-        panic!("Didn't consume all input")
+        println!("{:?}", rest.span[0].location);
+        panic!("Didn't consume all input");
     }
 
     let ast = Ast::new(matched, tokes);

@@ -1,6 +1,8 @@
-(if true (+ a b)
-            (* a b)
-            (w))
+(define x 
+    (let [y]
+        (fn [x])))
+
+
 
 
 

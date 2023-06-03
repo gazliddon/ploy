@@ -1,13 +1,12 @@
-use std::fmt::Display;
-
+use super::syntax::SyntaxErrorKind;
 use thiserror::Error;
-use crate::SyntaxErrorKind;
+use unraveler::{ParseError, ParseErrorKind, Severity};
+use super::prelude::*;
 
-use super::Span;
 
-use unraveler::{ ParseError, ParseErrorKind,Severity };
+pub type PResult<'a, O, E = PlError> = Result<(Span<'a>, O), E>;
 
-#[derive(Debug,Error,)]
+#[derive(Debug, Error)]
 pub enum FrontEndError {
     #[error(transparent)]
     SyntaxError(#[from] SyntaxErrorKind),
@@ -17,32 +16,32 @@ pub enum FrontEndError {
     Other(#[from] anyhow::Error),
 }
 
-#[derive(Debug,)]
+#[derive(Debug)]
 pub struct PlError {
-    kind : FrontEndError,
+    kind: FrontEndError,
     severity: Severity,
+    pos: std::ops::Range<usize>,
 }
 
-impl Display for PlError {
+impl std::fmt::Display for PlError {
     fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        todo!()
+        write!(_f, "{}", self.kind)
     }
 }
 
-
-impl std::error::Error  for PlError {
+impl std::error::Error for PlError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         None
     }
 }
 
-pub type PResult<'a, O, E = PlError> = Result<(Span<'a>, O), E>;
-
 impl<'a> ParseError<Span<'a>> for PlError {
     fn from_error_kind(_input: &Span<'a>, kind: ParseErrorKind, severity: Severity) -> Self {
-        let r= Self {
-            kind : kind.into(),
-            severity
+        let pos = _input.get_range();
+        let r = Self {
+            kind: kind.into(),
+            severity,
+            pos,
         };
         r
     }

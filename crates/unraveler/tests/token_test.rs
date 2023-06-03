@@ -1,6 +1,6 @@
 #![allow(unused)]
 
-use unraveler::{Item, ParseError,ParseErrorKind, tag,pair, many0, alt, tuple, any};
+use unraveler::{Item, ParseError,ParseErrorKind, tag,pair, many0, alt, tuple, any, Severity};
 
 type Span<'a> = unraveler::Span<'a, Token>;
 
@@ -8,7 +8,7 @@ type Span<'a> = unraveler::Span<'a, Token>;
 struct NewError {}
 
 impl ParseError<Span<'_>> for NewError {
-    fn from_error_kind(input: &Span, kind: ParseErrorKind) -> Self {
+    fn from_error_kind(input: &Span, kind: ParseErrorKind, sev: Severity) -> Self {
         println!("AN ERROR: {:?}", kind);
         NewError {  }
     }

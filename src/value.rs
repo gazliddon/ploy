@@ -1,7 +1,8 @@
-use super::frontend::ast::AstNodeId;
+use super::frontend::AstNodeId;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Value {
+    Unbound,
     Null,
     Macro,
     Signed(i64),
@@ -37,6 +38,7 @@ impl std::fmt::Display for Value {
             Macro => "macro".to_string(),
             Null => "null".to_string(),
             Node(id) => format!("Node: {id:?}"),
+            Unbound => "Unbound symbol".to_string(),
         };
 
         f.write_str(&x)
@@ -49,6 +51,10 @@ impl Value {
             self,
             Value::Unsigned(_) | Value::Signed(_) | Value::Float(_)
         )
+    }
+
+    pub fn is_unbound(&self) -> bool {
+        matches!(self,Value::Unbound)
     }
 
     pub fn as_double(self) -> Self {

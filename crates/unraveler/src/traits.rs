@@ -51,7 +51,7 @@ where
 {
     fn tag(&self, other: OTHER) -> Result<(Self, Self), E> {
         if other.length() > self.length() {
-            return Err(E::from_error_kind(self, ParseErrorKind::NoMatch, Severity::Error));
+            return Err(E::from_error(self, ParseErrorKind::NoMatch, ));
         }
 
         let mut index = 0;
@@ -61,7 +61,7 @@ where
             let b = other.at(i).unwrap().get_kind();
 
             if a != b {
-                return Err(E::from_error_kind(self, ParseErrorKind::NoMatch, Severity::Error));
+                return Err(E::from_error(self, ParseErrorKind::NoMatch));
             } else {
                 index += 1
             }

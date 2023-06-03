@@ -1,7 +1,7 @@
-use crate::error::*;
-use crate::traits::*;
-use crate::span::Item;
 use super::tuple::tuple;
+use crate::error::*;
+use crate::span::Item;
+use crate::traits::*;
 
 // use thin_vec::{thin_vec, ThinVec};
 
@@ -45,7 +45,7 @@ where
         }
 
         if out.is_empty() {
-            Err(ParseError::from_error_kind(&i, ParseErrorKind::NeededOneOrMore, Severity::Error))
+            Err(ParseError::from_error(&i, ParseErrorKind::NeededOneOrMore))
         } else {
             Ok((i, out))
         }
@@ -84,36 +84,32 @@ where
     }
 }
 
-pub fn opt<I, O, E,P>(
-    mut first: P,
-) -> impl FnMut(I) -> Result<(I, Option<O>), E>
+pub fn opt<I, O, E, P>(mut first: P) -> impl FnMut(I) -> Result<(I, Option<O>), E>
 where
     P: Parser<I, O, E>,
     E: ParseError<I>,
-    I : Clone,
+    I: Clone,
 {
     move |input: I| {
         let ret = first.parse(input.clone());
         if ret.is_ok() {
-            ret.map(|(r,m)| (r,Some(m)))
+            ret.map(|(r, m)| (r, Some(m)))
         } else {
-            Ok((input,None))
+            Ok((input, None))
         }
     }
 }
 
-pub fn cut<I, O, E,P>(
-    mut first: P,
-) -> impl FnMut(I) -> Result<(I, O), E>
+pub fn cut<I, O, E, P>(mut first: P) -> impl FnMut(I) -> Result<(I, O), E>
 where
     P: Parser<I, O, E>,
-    E: ParseError<I>,
+    E: ParseError<I> + std::fmt::Debug,
 {
     move |input: I| {
         let ret = first.parse(input);
         match ret {
             Ok(r) => Ok(r),
-            Err(mut e ) => {
+            Err(mut e) => {
                 e.set_severity(Severity::Fatal);
                 Err(e)
             }
@@ -140,8 +136,11 @@ where
     }
 }
 
-
-pub fn wrapped<SP, OTHER, E,P,O>(open: OTHER, mut p : P, close: OTHER) -> impl FnMut(SP) -> Result<(SP, O), E>
+pub fn wrapped<SP, OTHER, E, P, O>(
+    open: OTHER,
+    mut p: P,
+    close: OTHER,
+) -> impl FnMut(SP) -> Result<(SP, O), E>
 where
     SP: Collection + Splitter<E>,
     <SP as Collection>::Item: Item,
@@ -187,43 +186,42 @@ where
     move |input: SP| input.split_at(1)
 }
 
-pub fn is_a<SP,C,E>(isa: C) -> impl FnMut(SP) -> Result<(SP, <<SP as Collection>::Item as Item>::Kind), E> 
-   where 
+pub fn is_a<SP, C, E>(
+    isa: C,
+) -> impl FnMut(SP) -> Result<(SP, <<SP as Collection>::Item as Item>::Kind), E>
+where
     SP: Collection + Splitter<E>,
-    <SP as Collection>::Item : PartialEq + Copy + Item,
+    <SP as Collection>::Item: PartialEq + Copy + Item,
     C: Collection,
-    <C as Collection>::Item : PartialEq + Copy + Item,
-    <<SP as Collection>::Item as Item>::Kind:
-        PartialEq<<<C as Collection>::Item as Item>::Kind>,
+    <C as Collection>::Item: PartialEq + Copy + Item,
+    <<SP as Collection>::Item as Item>::Kind: PartialEq<<<C as Collection>::Item as Item>::Kind>,
     E: ParseError<SP>,
 {
-    let r = move |input : SP| -> Result<( SP,<<SP as Collection>::Item as Item>::Kind ),E>{
+    let r = move |input: SP| -> Result<(SP, <<SP as Collection>::Item as Item>::Kind), E> {
         if input.length() == 0 {
-            Err(ParseError::from_error_kind(&input, ParseErrorKind::NoMatch, Severity::Error), )
+            Err(ParseError::from_error(&input, ParseErrorKind::NoMatch))
         } else {
             let k = input.at(0).map(|x| x.get_kind());
 
             for i in 0..isa.length() {
-                let ik = isa.at(i).map(|x|x.get_kind());
+                let ik = isa.at(i).map(|x| x.get_kind());
 
-               match (k,ik ) {
-                    (Some(a), Some(b)) => if a==b {
-                        let r = input.drop(1).map(|x| (x,a)).map_err(|_| ParseError::from_error_kind(&input, ParseErrorKind::NoMatch, Severity::Error));
-                        return r;
-
-                    },
-                    _ => panic!()
+                match (k, ik) {
+                    (Some(a), Some(b)) => {
+                        if a == b {
+                            let r = input.drop(1).map(|x| (x, a)).map_err(|_| {
+                                ParseError::from_error(&input, ParseErrorKind::NoMatch)
+                            });
+                            return r;
+                        }
+                    }
+                    _ => panic!(),
                 }
             }
 
-            Err(ParseError::from_error_kind(&input, ParseErrorKind::NoMatch, Severity::Error))
+            Err(ParseError::from_error(&input, ParseErrorKind::NoMatch))
         }
     };
 
     r
 }
-
-
-
-
-

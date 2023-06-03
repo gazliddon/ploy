@@ -1,3 +1,5 @@
+use std::array::from_fn;
+
 use crate::span::Span;
 use thiserror::Error;
 
@@ -26,15 +28,22 @@ pub enum Severity {
 pub trait ParseError<I>: Sized {
     fn from_error_kind(input: &I, kind: ParseErrorKind, sev: Severity) -> Self;
 
+    fn from_fatal_error(input: &I, kind: ParseErrorKind)  -> Self {
+        Self::from_error_kind(input, kind, Severity::Fatal)
+    }
+
+    fn from_error(input: &I, kind: ParseErrorKind)  -> Self {
+        Self::from_error_kind(input, kind, Severity::Error)
+    }
+
+    fn set_severity(&mut self, sev: Severity);
+    fn severity(&self) -> Severity;
     fn append(input: &I, kind: ParseErrorKind, other: Self) -> Self;
 
     fn is_fatal(&self) -> bool {
         self.severity() == Severity::Fatal
     }
 
-    fn set_severity(&mut self, sev: Severity);
-
-    fn severity(&self) -> Severity;
 }
 
 

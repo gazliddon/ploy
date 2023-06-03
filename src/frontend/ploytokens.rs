@@ -1,7 +1,9 @@
-use super::tokens::{ FragementLocation,ParseText, TokenKind,};
+use super::tokens::{ FragementLocation,ParseText};
 use logos::Logos;
 
-pub type Token<'a> = super::tokens::Token<ParseText<'a>>;
+use super::prelude::*;
+
+pub (crate) type Token<'a> = super::tokens::Token<ParseText<'a>>;
 
 impl<'a> unraveler::Item for Token<'a> {
     type Kind = TokenKind;

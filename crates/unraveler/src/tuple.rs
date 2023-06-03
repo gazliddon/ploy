@@ -26,7 +26,6 @@ macro_rules! impl_tuple {
                 let rest = input.clone();
                 $(
                     let (rest,[<out_$T:lower 1>]) = [<$T:lower 1>].parse(rest.clone())?;
-
                 )*;
 
                 Ok(( rest,($([<out_$T:lower 1>],)*) ))
