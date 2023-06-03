@@ -1,6 +1,9 @@
-(define x 
-    (let [y]
-        (fn [x])))
+(let [y]
+    (define p 1)
+    (fn [x]
+        (a b c))
+)
+
 
 
 

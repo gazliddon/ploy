@@ -4,7 +4,6 @@ use super::prelude::*;
 
 use crate::symbols::{ScopeId, SymbolTree};
 use anyhow::Context;
-use pretty_assertions::private::CompareAsStrByDefault;
 use serde::Deserialize;
 use std::{collections::HashMap, io::Cursor};
 use thin_vec::ThinVec;
@@ -66,6 +65,14 @@ fn min_args(args: &[AstNodeRef], min: usize) -> Result<(), SyntaxErrorKind> {
     }
 }
 
+fn get_rec_ids(tree: &AstTree, id: AstNodeId, nodes: &mut Vec<AstNodeId>) {
+    nodes.push(id);
+    let kids = tree.get(id).unwrap().children().into_iter().map(|n| n.id());
+    for k in kids {
+        get_rec_ids(tree, k, nodes)
+    }
+}
+
 impl Ast {
     pub fn process(&mut self, syms: &mut SymbolTree, source: &str) -> Result<(), FrontEndError> {
         self.add_scopes(syms, source)?;
@@ -78,8 +85,8 @@ impl Ast {
         panic!()
     }
 
-    /// If this node has it's own scope 
-    /// then 
+    /// If this node has it's own scope
+    /// then
     /// previous node = create a unique new scope
     /// after node = return to the current scope
     fn set_scope_for_node(
@@ -94,11 +101,8 @@ impl Ast {
         if v.kind.creates_new_scope() {
             let new_scope_name = format!("scope_{}", syms.get_next_scope_id());
             let new_scope = syms.create_or_get_scope_for_parent(&new_scope_name, current_scope);
-
-            let mut before = v.clone();
-            let mut after = v.clone();
-            before.kind = AstNodeKind::SetScope(new_scope);
-            after.kind = AstNodeKind::SetScope(current_scope);
+            let before = v.change_kind(AstNodeKind::SetScope(new_scope));
+            let after = v.change_kind(AstNodeKind::SetScope(current_scope));
             n.insert_before(before);
             n.insert_after(after);
             new_scope
@@ -115,7 +119,6 @@ impl Ast {
         mut current_scope: ScopeId,
     ) {
         current_scope = self.set_scope_for_node(syms, id, current_scope);
-
         let n = self.tree.get(id).unwrap();
         let k_ids: ThinVec<_> = n.children().map(|n| n.id()).collect();
 
@@ -124,6 +127,7 @@ impl Ast {
         }
     }
 
+    /// Add scope setting, unsetting for all forms that need it
     fn add_scopes(&mut self, syms: &mut SymbolTree, _source: &str) -> Result<(), FrontEndError> {
         let id = self.tree.root().id();
         let current_scope = syms.get_root_scope_id();
@@ -131,21 +135,26 @@ impl Ast {
         Ok(())
     }
 
-    fn intern_symbols(
-        &mut self,
-        _syms: &mut SymbolTree,
-        source: &str,
-    ) -> Result<(), FrontEndError> {
+    /// Change all symbols to interned symbols
+    fn intern_symbols(&mut self, syms: &mut SymbolTree, source: &str) -> Result<(), FrontEndError> {
         use AstNodeKind::*;
 
-        for v in self.tree.values() {
+        let mut current_scope = syms.get_root_scope_id();
+
+        let mut nodes = vec![];
+        get_rec_ids(&self.tree, self.tree.root().id(), &mut nodes);
+
+        for id in nodes {
+            let v = self.tree.get(id).unwrap().value();
             match v.kind {
+                SetScope(id) => current_scope = id,
                 Symbol => {
                     let txt = &source[v.text_range.clone()];
-                    println!("Symbol is {txt} {:?}", v.text_range);
+                    println!("Symbol is {current_scope}:{txt} {:?}", v.text_range);
                 }
                 _ => (),
             }
+
         }
 
         Ok(())

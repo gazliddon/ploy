@@ -71,6 +71,13 @@ pub struct AstNode {
 }
 
 impl AstNode {
+    pub fn change_kind(&self, new_k : AstNodeKind) -> Self {
+        Self {
+            kind: new_k,
+            ..self.clone()
+        }
+    }
+
     fn from_parse_node(node: ParseNode, _tokes: &[Token]) -> Self {
         let tokes_range = &_tokes[node.range.clone()];
         let start_t = &tokes_range.first().unwrap().location.loc;
