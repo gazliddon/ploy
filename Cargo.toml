@@ -11,16 +11,16 @@ thiserror="*"
 anyhow="*"
 clap = { version = "*", features = ["derive", "color"] }
 env_logger="*"
-itertools="*"
 lazy_static = "*"
 regex="*"
 logos="*"
 toml="*"
 unraveler  = {path = "crates/unraveler"}
-symbols  = {path = "../gazm/symbols"}
+symbols  = {path = "crates/symbols"}
 ego-tree="*"
 
 serde = { version = "*", features = ["derive"] }
 serde_json = "*"
 serde_yaml = "*"
+
 pretty_assertions="*"
