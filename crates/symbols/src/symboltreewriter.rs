@@ -5,6 +5,7 @@ pub struct SymbolTreeWriter<'a, SCOPEID, SYMID,SYMVALUE>
 where
     SCOPEID: ScopeIdTraits,
     SYMID: SymIdTraits,
+        SYMVALUE: Clone,
 {
     current_scope_id: SCOPEID,
     sym_tree: &'a mut SymbolTree<SCOPEID, SYMID, SYMVALUE>,
@@ -14,6 +15,7 @@ impl<'a, SCOPEID, SYMID,V> SymbolTreeWriter<'a,SCOPEID,SYMID,V>
 where
     SCOPEID: ScopeIdTraits,
     SYMID: SymIdTraits,
+    V: Clone,
 {
     pub fn new(sym_tree: &'a mut SymbolTree<SCOPEID,SYMID,V>, current_scope_id: SCOPEID) -> Self {
         Self {
@@ -75,7 +77,7 @@ where
         val: V,
     ) -> Result<SymbolScopeId<SCOPEID,SYMID>, SymbolError<SCOPEID,SYMID>> {
         let symbol_id = self.create_symbol(name)?;
-        self.sym_tree.set_symbol_from_id(symbol_id, val)?;
+        self.sym_tree.set_symbol_for_id(symbol_id, val)?;
         Ok(symbol_id)
     }
 
@@ -92,7 +94,9 @@ where
 impl<'a, SCOPEID, SYMID,SYMVALUE> SymbolTreeWriter<'a,SCOPEID,SYMID,SYMVALUE>
 where
     SCOPEID: ScopeIdTraits + std::fmt::Debug,
-    SYMID: SymIdTraits + std::fmt::Debug, {
+    SYMID: SymIdTraits + std::fmt::Debug, 
+    SYMVALUE: Clone,
+{
     pub fn dump_scope(&self) {
         let x = self
             .sym_tree

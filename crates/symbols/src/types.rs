@@ -1,16 +1,27 @@
 use serde::{Deserialize, Serialize};
 
-
 ////////////////////////////////////////////////////////////////////////////////
 // Traits
 
 pub trait ScopeIdTraits:
-    std::hash::Hash + std::ops::AddAssign<u64> + std::clone::Clone + std::cmp::Eq + From<u64> + Copy + Default
+    std::hash::Hash
+    + std::ops::AddAssign<u64>
+    + std::clone::Clone
+    + std::cmp::Eq
+    + From<u64>
+    + Copy
+    + Default
 {
 }
 
 pub trait SymIdTraits:
-    std::hash::Hash + std::ops::AddAssign<u64> + std::clone::Clone + std::cmp::Eq + From<u64> + Copy + Default
+    std::hash::Hash
+    + std::ops::AddAssign<u64>
+    + std::clone::Clone
+    + std::cmp::Eq
+    + From<u64>
+    + Copy
+    + Default
 {
 }
 
@@ -19,7 +30,7 @@ impl SymIdTraits for u64 {}
 
 ////////////////////////////////////////////////////////////////////////////////
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, Hash, Copy)]
-pub struct SymbolScopeId<SCOPEID , SYMID >
+pub struct SymbolScopeId<SCOPEID, SYMID>
 where
     SCOPEID: ScopeIdTraits,
     SYMID: SymIdTraits,
@@ -28,15 +39,15 @@ where
     pub symbol_id: SYMID,
 }
 
-impl <SCOPEID,SYMID> SymbolScopeId<SCOPEID,SYMID> 
-    where
-
+impl<SCOPEID, SYMID> SymbolScopeId<SCOPEID, SYMID>
+where
     SCOPEID: ScopeIdTraits,
     SYMID: SymIdTraits,
 {
-    pub fn new(scope_id: SCOPEID, symbol_id : SYMID) -> Self {
+    pub fn new(scope_id: SCOPEID, symbol_id: SYMID) -> Self {
         Self {
-            scope_id, symbol_id
+            scope_id,
+            symbol_id,
         }
     }
 }
@@ -45,21 +56,23 @@ impl <SCOPEID,SYMID> SymbolScopeId<SCOPEID,SYMID>
 /// Holds information about a symbol
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
-pub struct SymbolInfo<SCOPEID, SYMID,SYMVALUE> 
+pub struct SymbolInfo<SCOPEID, SYMID, SYMVALUE>
 where
     SCOPEID: ScopeIdTraits,
     SYMID: SymIdTraits,
-    {
+    SYMVALUE: Clone,
+{
     name: String,
     scoped_name: String,
     pub value: Option<SYMVALUE>,
-    pub symbol_id: SymbolScopeId<SCOPEID,SYMID>,
+    pub symbol_id: SymbolScopeId<SCOPEID, SYMID>,
 }
 
 impl<SCOPEID, SYMID, SYMVALUE> SymbolInfo<SCOPEID, SYMID, SYMVALUE>
 where
     SCOPEID: ScopeIdTraits,
     SYMID: SymIdTraits,
+    SYMVALUE: Clone,
 {
     pub fn new(
         name: &str,
@@ -90,7 +103,7 @@ where
     SYMID: SymIdTraits,
 {
     InvalidScope,
-    AlreadyDefined(SymbolScopeId<SCOPEID,SYMID>),
+    AlreadyDefined(SymbolScopeId<SCOPEID, SYMID>),
     Mismatch,
     NotFound,
     NoValue,

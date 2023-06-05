@@ -19,6 +19,7 @@ pub struct Naver<'a, SCOPEID, SYMID, SYMVALUE>
 where
     SCOPEID: ScopeIdTraits,
     SYMID: SymIdTraits,
+        SYMVALUE: Clone,
 {
     tree: &'a SymbolTree<SCOPEID, SYMID, SYMVALUE>,
     current_scope: SCOPEID,
@@ -28,6 +29,7 @@ impl<'a, SCOPEID, SYMID, SYMVALUE> Naver<'a, SCOPEID, SYMID,SYMVALUE>
 where
     SCOPEID: ScopeIdTraits,
     SYMID: SymIdTraits,
+    SYMVALUE: Clone,
 {
     pub fn new(tree: &'a SymbolTree<SCOPEID, SYMID, SYMVALUE>) -> Self {
         Self {
@@ -41,6 +43,7 @@ impl<'a, SCOPEID, SYMID, SYMVALUE> SymbolNav<SCOPEID> for Naver<'a, SCOPEID, SYM
 where
     SCOPEID: ScopeIdTraits,
     SYMID: SymIdTraits,
+    SYMVALUE: Clone,
 {
     fn up(&mut self) -> NResult<()> {
         todo!()
