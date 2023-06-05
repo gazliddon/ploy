@@ -67,6 +67,22 @@ where
         Ok((rest, matched_2))
     }
 }
+pub fn succeeded<I, O1, O2, P1, P2, E>(
+    mut first: P1,
+    mut second: P2,
+) -> impl FnMut(I) -> Result<(I, O1), E>
+where
+    P1: Parser<I, O1, E>,
+    P2: Parser<I, O2, E>,
+    E: ParseError<I>,
+{
+    move |rest: I| {
+        let (rest, matched_1) = first.parse(rest)?;
+        let (rest, _) = second.parse(rest)?;
+        Ok((rest, matched_1))
+    }
+}
+
 
 pub fn pair<I, O1, O2, P1, P2, E>(
     mut first: P1,

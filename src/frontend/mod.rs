@@ -7,6 +7,7 @@ mod syntax;
 mod span;
 mod ast;
 mod error;
+mod parsenode;
 
 mod prelude;
 

@@ -7,6 +7,7 @@ mod frontend;
 mod opts;
 mod symbols;
 mod value;
+mod ir;
 
 use anyhow::Context;
 use thiserror::Error;

@@ -145,16 +145,39 @@ impl Ast {
         get_rec_ids(&self.tree, self.tree.root().id(), &mut nodes);
 
         for id in nodes {
-            let v = self.tree.get(id).unwrap().value();
+            let n = self.tree.get(id).unwrap();
+            let v = n.value();
+
             match v.kind {
                 SetScope(id) => current_scope = id,
-                Symbol => {
-                    let txt = &source[v.text_range.clone()];
-                    println!("Symbol is {current_scope}:{txt} {:?}", v.text_range);
+
+                Let => {
+                    println!("Let");
+                    let args = n.first_child().unwrap();
+                    for sym in args.children() {
+                        let name = &source[sym.value().text_range.clone()];
+                        println!("{current_scope} {name}");
+                    }
                 }
+
+                Define => {
+                    println!("Define");
+                    let sym = n.first_child().unwrap();
+                    let name = &source[sym.value().text_range.clone()];
+                    println!("{current_scope} {name}");
+                }
+
+                Lambda => {
+                    println!("Lambda");
+                    let args = n.first_child().unwrap();
+                    for sym in args.children() {
+                        let name = &source[sym.value().text_range.clone()];
+                        println!("{current_scope} {name}");
+                    }
+                }
+
                 _ => (),
             }
-
         }
 
         Ok(())

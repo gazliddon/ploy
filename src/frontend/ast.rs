@@ -1,3 +1,4 @@
+use std::{collections::HashMap, default};
 use thin_vec::{thin_vec, ThinVec};
 
 use unraveler::{
@@ -7,16 +8,9 @@ use unraveler::{
 
 use crate::symbols::ScopeId;
 
-use super::{
-    error::FrontEndError,
-    parsers::ParseNode,
-    tokens::{ParseText, TokenKind},
-};
-
 use super::prelude::*;
 
-
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Default)]
 pub enum AstNodeKind {
     BuiltIn,
     Quoted,
@@ -33,7 +27,7 @@ pub enum AstNodeKind {
     Symbol,
     InternedSymbol,
     Scope,
-
+    KeyWord,
     Define,
     Lambda,
     If,
@@ -44,6 +38,9 @@ pub enum AstNodeKind {
     Do,
     Macro,
     SetScope(ScopeId),
+    MetaData,
+    #[default]
+    Nothing,
 }
 
 impl AstNodeKind {
@@ -63,7 +60,7 @@ impl AstNodeKind {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct AstNode {
     pub kind: AstNodeKind,
     pub token_range: std::ops::Range<usize>,
@@ -71,7 +68,7 @@ pub struct AstNode {
 }
 
 impl AstNode {
-    pub fn change_kind(&self, new_k : AstNodeKind) -> Self {
+    pub fn change_kind(&self, new_k: AstNodeKind) -> Self {
         Self {
             kind: new_k,
             ..self.clone()
@@ -99,33 +96,68 @@ pub type AstNodeRef<'a> = ego_tree::NodeRef<'a, AstNode>;
 pub type AstNodeId = ego_tree::NodeId;
 pub type AstNodeMut<'a> = ego_tree::NodeMut<'a, AstNode>;
 
+#[derive(Debug, Clone)]
+pub struct MetaData {
+    node: AstNodeId,
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 #[derive(Debug, Clone)]
 pub struct Ast {
     pub tree: AstTree,
+    pub meta_data: HashMap<AstNodeId, MetaData>,
 }
 
 impl Ast {
-    fn add_node(&mut self, parent_id: AstNodeId, parse_node: ParseNode, tokes: &[Token]) {
-        let mut r = self.tree.get_mut(parent_id).unwrap();
+    fn add_node(&mut self, parent_id: Option<AstNodeId>, parse_node: ParseNode, tokes: &[Token]) {
         let v = AstNode::from_parse_node(parse_node.clone(), tokes);
-        let id = r.append(v).id();
-        self.add_kids(id, parse_node.children, tokes);
+
+        let id = if let Some(parent_id) = parent_id {
+            let mut r = self.tree.get_mut(parent_id).unwrap();
+            r.append(v).id()
+        } else {
+            let mut root_nod_mut = self.tree.root_mut();
+            let id = root_nod_mut.id();
+            *root_nod_mut.value() = v;
+            id
+        };
+
+        let meta_data = Self::get_meta_data(id, &parse_node);
+        self.add_meta_data(id, meta_data);
+
+        for k in parse_node.children.into_iter() {
+            self.add_node(Some(id), k, tokes)
+        }
     }
 
-    fn add_kids(&mut self, parent_id: AstNodeId, kids: ThinVec<ParseNode>, tokes: &[Token]) {
-        for k in kids.into_iter() {
-            self.add_node(parent_id, k, tokes)
+    fn get_meta_data(id: AstNodeId, parse_node: &ParseNode) -> Option<MetaData> {
+        if let Some(meta_data) = &parse_node.meta_data {
+            assert!(meta_data.is_kind(AstNodeKind::MetaData));
+            for p in &meta_data.children {
+                let (ParseNode{kind: AstNodeKind::Pair,..}, [ParseNode{kind: AstNodeKind::KeyWord,..}, _v] ) = (&p,&p.children[0..2]) else {
+                    panic!()
+                };
+            }
+            Some(MetaData { node: id })
+        } else {
+            None
+        }
+    }
+
+    fn add_meta_data(&mut self, id: AstNodeId, meta_data: Option<MetaData>) {
+        if let Some(meta_data) = meta_data {
+            let _ = self.meta_data.insert(id, meta_data);
         }
     }
 
     fn new(parse_node: ParseNode, tokes: &[Token]) -> Self {
-        let v = AstNode::from_parse_node(parse_node.clone(), tokes);
-
         let mut ret = Self {
-            tree: AstTree::new(v),
+            tree: AstTree::new(Default::default()),
+            meta_data: Default::default(),
         };
-        ret.add_kids(ret.tree.root().id(), parse_node.children, tokes);
+
+        ret.add_node(None, parse_node, tokes);
+
         ret
     }
 }

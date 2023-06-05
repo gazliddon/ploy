@@ -109,6 +109,9 @@ pub enum TokenKind {
 
     #[token(":")]
     Colon,
+
+    #[regex(":[a-zA-Z_]+[a-zA-Z_0-9]*")]
+    KeyWord,
 }
 
 impl From<std::ops::Range<usize>> for Location {
