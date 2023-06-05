@@ -27,12 +27,8 @@ where
     }
 
     pub fn pop(&mut self) {
-        let n = self
-            .sym_tree
-            .get_node_from_id(self.current_scope_id)
-            .expect("Invalid id");
-        if let Some(n) = n.parent() {
-            self.current_scope_id = n.value().get_scope_id()
+        if let Some(id) = self.sym_tree.get_parent_scope_id(self.current_scope_id) {
+            self.current_scope_id = id
         }
     }
 
@@ -104,6 +100,5 @@ where
             .unwrap();
         println!("{:#?}", x.value())
     }
-
 }
 

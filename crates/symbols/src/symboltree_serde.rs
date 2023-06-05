@@ -2,6 +2,7 @@ use super::{
     ScopeIdTraits, SymIdTraits, SymbolError, symboltree::SymbolNodeRef, SymbolResolutionBarrier, SymbolScopeId,
     symboltree::SymbolTree,
 };
+
 use serde::{ser::SerializeMap, Deserialize};
 use std::collections::HashMap;
 

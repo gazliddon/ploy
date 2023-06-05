@@ -11,10 +11,11 @@ use super::{
 // SymbolTree
 type SymbolTreeTree<SCOPEID, SYMID> = ego_tree::Tree<SymbolTable<SCOPEID, SYMID>>;
 
-pub(crate) type SymbolNodeRef<'a, SCOPEID, SYMID> =
+type SymbolNodeRef<'a, SCOPEID, SYMID> =
     ego_tree::NodeRef<'a, SymbolTable<SCOPEID, SYMID>>;
-pub(crate) type SymbolNodeId = ego_tree::NodeId;
-pub(crate) type SymbolNodeMut<'a, SCOPEID, SYMID> =
+
+type SymbolNodeId = ego_tree::NodeId;
+type SymbolNodeMut<'a, SCOPEID, SYMID> =
     ego_tree::NodeMut<'a, SymbolTable<SCOPEID, SYMID>>;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -28,6 +29,15 @@ where
     pub scope_id_to_node_id: HashMap<SCOPEID, SymbolNodeId>,
     pub scope_id_to_symbol_info:
         HashMap<SymbolScopeId<SCOPEID, SYMID>, SymbolInfo<SCOPEID, SYMID, SYMVALUE>>,
+}
+
+struct SymbolNode<SCOPEID, SYMID>
+where
+    SCOPEID: ScopeIdTraits,
+    SYMID: SymIdTraits,
+{
+    parent : Option<SCOPEID>,
+    children: HashMap<String, SymbolTable<SCOPEID, SYMID>>,
 }
 
 impl<SCOPEID, SYMID, SYMVALUE> Default for SymbolTree<SCOPEID, SYMID, SYMVALUE>
@@ -58,6 +68,12 @@ where
     SCOPEID: ScopeIdTraits,
     SYMID: SymIdTraits,
 {
+
+    pub fn get_parent_scope_id(&self, scope_id : SCOPEID) -> Option<SCOPEID> {
+        let node = self.get_node_from_id(scope_id).expect("Illegal scope id");
+        node.parent().map(|n| n.value().get_scope_id())
+    }
+
     pub fn find_sub_scope_id(
         &self,
         path: &[&str],
