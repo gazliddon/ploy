@@ -22,7 +22,7 @@ fn main() -> anyhow::Result<()> {
     let mut syms = crate::symbols::SymbolTree::new();
 
     let program_txt =
-        std::fs::read_to_string(&opts.project_file).context("Can't load project file")?;
+        std::fs::read_to_string(opts.project_file).context("Can't load project file")?;
     let tokes = tokenize(&program_txt);
 
     let mut ast = to_ast(&tokes)?;

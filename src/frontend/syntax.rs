@@ -28,7 +28,7 @@ fn get_str<'a>(x: Token<'a>, txt: &'a str) -> &'a str {
 
 fn to_kinds(x: &[Token], txt: &str) -> Vec<(TokenKind, String)> {
     x.iter()
-        .map(|x| (x.get_kind(), get_str(x.clone(), txt).to_string()))
+        .map(|x| (x.get_kind(), get_str(*x, txt).to_string()))
         .collect()
 }
 
@@ -67,7 +67,7 @@ fn min_args(args: &[AstNodeRef], min: usize) -> Result<(), SyntaxErrorKind> {
 
 fn get_rec_ids(tree: &AstTree, id: AstNodeId, nodes: &mut Vec<AstNodeId>) {
     nodes.push(id);
-    let kids = tree.get(id).unwrap().children().into_iter().map(|n| n.id());
+    let kids = tree.get(id).unwrap().children().map(|n| n.id());
     for k in kids {
         get_rec_ids(tree, k, nodes)
     }

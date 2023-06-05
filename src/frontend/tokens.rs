@@ -123,7 +123,7 @@ impl From<std::ops::Range<usize>> for Location {
     }
 }
 
-#[derive(Clone, Debug, Copy, PartialEq)]
+#[derive(Clone, Debug, Copy, PartialEq,Default)]
 pub struct Location {
     pub start: usize,
     pub len: usize,
@@ -134,15 +134,6 @@ impl Location {
     }
 }
 
-impl Default for Location {
-    fn default() -> Self {
-        Self {
-            start: 0,
-            len: 0,
-        }
-    }
-
-}
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ParseText<'a> {

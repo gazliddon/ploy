@@ -45,18 +45,15 @@ pub enum AstNodeKind {
 
 impl AstNodeKind {
     pub fn creates_new_scope(&self) -> bool {
-        match self {
-            AstNodeKind::Lambda | AstNodeKind::Let => true,
-            _ => false,
-        }
+        matches!(self, AstNodeKind::Lambda | AstNodeKind::Let)
     }
 
     pub fn is_special(&self) -> bool {
         use AstNodeKind::*;
-        match self {
-            Define | Lambda | If | Let | Cond | And | Or | Do | Macro => true,
-            _ => false,
-        }
+        matches!(
+            self,
+            Define | Lambda | If | Let | Cond | And | Or | Do | Macro
+        )
     }
 }
 
@@ -85,7 +82,7 @@ impl AstNode {
 
         Self {
             kind: node.kind,
-            token_range: node.range.clone(),
+            token_range: node.range,
             text_range: start..end,
         }
     }
@@ -162,7 +159,7 @@ impl Ast {
     }
 }
 
-pub fn to_ast<'a>(tokes: &'a Vec<Token>) -> Result<Ast, PlError> {
+pub fn to_ast(tokes: &[Token]) -> Result<Ast, PlError> {
     let tokens = Span::new(0, tokes);
     let (rest, matched) = super::parsers::parse_program(tokens)?;
 

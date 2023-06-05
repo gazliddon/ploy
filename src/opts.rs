@@ -25,7 +25,7 @@ pub struct Opts {
     pub action: Action,
     pub verbosity: Verbosity,
 }
-pub const DEFAULT_PROJECT_FILE : &'static str = "Ploy.toml";
+pub const DEFAULT_PROJECT_FILE : &str = "Ploy.toml";
 
 impl Default for Opts {
     fn default() -> Self {

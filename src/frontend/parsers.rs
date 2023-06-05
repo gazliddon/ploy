@@ -11,14 +11,14 @@ use super::prelude::*;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Helpers
-fn parse_kind<'a, K>(input: Span<'a>, one_of: K, node_kind: AstNodeKind) -> PResult<'a, ParseNode>
+fn parse_kind<K>(input: Span, one_of: K, node_kind: AstNodeKind) -> PResult<ParseNode>
 where
     K: Collection,
     <K as Collection>::Item: PartialEq + Copy + Item,
     TokenKind: PartialEq<<<K as Collection>::Item as Item>::Kind>,
 {
     let (rest, _matched) = is_a(one_of)(input)?;
-    let ret = ParseNode::new(node_kind, input, rest).build();
+    let ret = ParseNode::builder(node_kind, input, rest).build();
     Ok((rest, ret))
 }
 
@@ -29,7 +29,7 @@ fn parse_wrapped_collection(
     kind: AstNodeKind,
 ) -> PResult<ParseNode> {
     let (rest, list) = wrapped(open, many0(parse_atom), close)(input)?;
-    let x = ParseNode::new(kind, input, rest).children(list);
+    let x = ParseNode::builder(kind, input, rest).children(list);
     Ok((rest, x.into()))
 }
 
@@ -57,13 +57,13 @@ fn parse_bool(input: Span) -> PResult<ParseNode> {
 
 fn parse_quoted(input: Span) -> PResult<ParseNode> {
     let (rest, atom) = preceded(tag(TokenKind::Quote), parse_quotable)(input)?;
-    let node = ParseNode::new(AstNodeKind::Quoted, input, rest).children(vec![atom]);
+    let node = ParseNode::builder(AstNodeKind::Quoted, input, rest).children(vec![atom]);
     Ok((rest, node.into()))
 }
 
 fn parse_null(input: Span) -> PResult<ParseNode> {
     let (rest, _) = tag([TokenKind::OpenBracket, TokenKind::CloseBracket])(input)?;
-    Ok((rest, ParseNode::new(AstNodeKind::Null, input, rest).into()))
+    Ok((rest, ParseNode::builder(AstNodeKind::Null, input, rest).into()))
 }
 
 fn parse_symbol(input: Span) -> PResult<ParseNode> {
@@ -95,7 +95,7 @@ fn parse_aplication(input: Span) -> PResult<ParseNode> {
         many1(parse_atom),
         TokenKind::CloseBracket,
     )(input)?;
-    let node = ParseNode::new(AstNodeKind::Application, input, rest).children(list);
+    let node = ParseNode::builder(AstNodeKind::Application, input, rest).children(list);
     Ok((rest, node.into()))
 }
 
@@ -166,7 +166,7 @@ fn parse_define(input: Span) -> PResult<ParseNode> {
 
     Ok((
         rest,
-        ParseNode::new(Define, input, rest)
+        ParseNode::builder(Define, input, rest)
             .children([sym, val])
             .meta_opt(meta)
             .into(),
@@ -188,10 +188,10 @@ fn parse_if(input: Span) -> PResult<ParseNode> {
 
     let args: ThinVec<_> = [Some(p), Some(is_true), is_false]
         .into_iter()
-        .filter_map(|x| x)
+        .flatten()
         .collect();
 
-    let node = ParseNode::new(AstNodeKind::If, input, rest)
+    let node = ParseNode::builder(AstNodeKind::If, input, rest)
         .children(args)
         .build();
     Ok((rest, node))
@@ -217,7 +217,7 @@ fn parse_let_lambda<'a>(
         cut(tuple((parse_array, many0(parse_atom), tag(CloseBracket)))),
     )(input)?;
 
-    let node = ParseNode::new(kind, input, rest)
+    let node = ParseNode::builder(kind, input, rest)
         .child(args)
         .children(forms)
         .build();
@@ -230,7 +230,7 @@ fn parse_simple<'a>(input: Span<'a>, txt: &'a str, kind: AstNodeKind) -> PResult
         tuple((tag(OpenBracket), |i| parse_text(i, txt))),
         cut(tuple((many1(parse_atom), tag(CloseBracket)))),
     )(input)?;
-    let node = ParseNode::new(kind, input, rest).children(args).build();
+    let node = ParseNode::builder(kind, input, rest).children(args).build();
     Ok((rest, node))
 }
 
@@ -251,7 +251,7 @@ fn parse_array(input: Span) -> PResult<ParseNode> {
 fn parse_pair(input: Span) -> PResult<ParseNode> {
     use TokenKind::*;
     let (rest, (a, b)) = sep_pair(parse_atom, tag(Colon), parse_atom)(input)?;
-    let node = ParseNode::new(AstNodeKind::Pair, input, rest).children([a, b]);
+    let node = ParseNode::builder(AstNodeKind::Pair, input, rest).children([a, b]);
     Ok((rest, node.into()))
 }
 
@@ -260,14 +260,14 @@ fn parse_keyword(input: Span) -> PResult<ParseNode> {
     let (rest, _) = tag(KeyWord)(input)?;
     Ok((
         rest,
-        ParseNode::new(AstNodeKind::KeyWord, input, rest).into(),
+        ParseNode::builder(AstNodeKind::KeyWord, input, rest).into(),
     ))
 }
 
 fn parse_map(input: Span) -> PResult<ParseNode> {
     use TokenKind::*;
     let (rest, kids) = wrapped(OpenBrace, many0(parse_pair), CloseBrace)(input)?;
-    let node = ParseNode::new(AstNodeKind::Map, input, rest).children(kids);
+    let node = ParseNode::builder(AstNodeKind::Map, input, rest).children(kids);
     Ok((rest, node.into()))
 }
 
@@ -307,6 +307,6 @@ fn parse_atom(input: Span) -> PResult<ParseNode> {
 
 pub(crate) fn parse_program(input: Span) -> PResult<ParseNode> {
     let (rest, matched) = many0(parse_atom)(input)?;
-    let x = ParseNode::new(AstNodeKind::Program, input, rest).children(matched);
+    let x = ParseNode::builder(AstNodeKind::Program, input, rest).children(matched);
     Ok((rest, x.into()))
 }

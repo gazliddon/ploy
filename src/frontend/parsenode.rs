@@ -15,7 +15,7 @@ pub(crate) struct ParseNode {
 }
 
 impl ParseNode {
-    pub fn new(kind: AstNodeKind, input: Span, rest: Span) -> NodeBuilder {
+    pub fn builder(kind: AstNodeKind, input: Span, rest: Span) -> NodeBuilder {
         NodeBuilder::from_spans(kind, input, rest)
     }
 
@@ -36,9 +36,9 @@ pub(crate) struct NodeBuilder {
     pub meta_data: Option<ParseNode>,
 }
 
-impl Into<ParseNode> for NodeBuilder {
-    fn into(self) -> ParseNode {
-        self.build()
+impl From<NodeBuilder> for ParseNode {
+    fn from(value: NodeBuilder) -> Self {
+        value.build()
     }
 }
 

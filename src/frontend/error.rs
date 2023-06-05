@@ -38,12 +38,11 @@ impl std::error::Error for PlError {
 impl<'a> ParseError<Span<'a>> for PlError {
     fn from_error_kind(_input: &Span<'a>, kind: ParseErrorKind, severity: Severity) -> Self {
         let pos = _input.get_range();
-        let r = Self {
+        Self {
             kind: kind.into(),
             severity,
             pos,
-        };
-        r
+        }
     }
 
     fn append(_input: &Span<'a>, _kind: ParseErrorKind, _other: Self) -> Self {

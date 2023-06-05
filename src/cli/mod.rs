@@ -48,7 +48,7 @@ fn make_config_file_arg() -> clap::Arg {
         .default_value(DEFAULT_PROJECT_FILE)
 }
 
-fn make_config_file_command<'a>(command: &'static str, about: &'static str) -> clap::Command {
+fn make_config_file_command(command: &'static str, about: &'static str) -> clap::Command {
     clap::Command::new(command)
         .about(about)
         .arg(make_config_file_arg())

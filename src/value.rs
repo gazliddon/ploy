@@ -57,7 +57,7 @@ impl Value {
         matches!(self,Value::Unbound)
     }
 
-    pub fn as_double(self) -> Self {
+    pub fn into_double(self) -> Self {
         use Value::*;
         match self {
             Signed(a) => Float(a as f64),
@@ -67,7 +67,7 @@ impl Value {
         }
     }
 
-    pub fn as_unsigned(self) -> Self {
+    pub fn into_unsigned(self) -> Self {
         use Value::*;
         match self {
             Signed(a) => Unsigned(a as u64),
@@ -77,7 +77,7 @@ impl Value {
         }
     }
 
-    pub fn as_signed(self) -> Self {
+    pub fn into_signed(self) -> Self {
         use Value::*;
         match self {
             Signed(_) => self,
@@ -87,7 +87,7 @@ impl Value {
         }
     }
 
-    pub fn as_text(self) -> Self {
+    pub fn into_text(self) -> Self {
         Value::Text(format!("{self}"))
     }
 }

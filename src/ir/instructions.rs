@@ -30,7 +30,7 @@ pub fn exec(ins : &[Instructions], regs: &mut [usize]) -> usize{
             Div(d,a,b) => regs[d] = regs[a] / regs[b],
             Mov(d,a) => regs[d] = regs[a] ,
         }
-        pc = pc + 1;
+        pc += 1;
     }
 
     regs[ret_reg]
