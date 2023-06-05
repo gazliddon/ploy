@@ -1,5 +1,5 @@
-use super::{ ScopeIdTraits, SymbolError,  SymbolScopeId, SymIdTraits};
 use std::{collections::HashMap, fmt::Display};
+use super::prelude::*;
 
 ////////////////////////////////////////////////////////////////////////////////
 use serde::{Deserialize, Serialize};
@@ -20,7 +20,7 @@ impl SymbolResolutionBarrier {
 
 /// Holds information about symbols
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, Default)]
-pub struct SymbolTable<SCOPEID, SYMID>
+pub (crate) struct SymbolTable<SCOPEID, SYMID>
 where
     SCOPEID: ScopeIdTraits,
     SYMID: SymIdTraits,

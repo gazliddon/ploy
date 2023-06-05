@@ -1,7 +1,6 @@
-use super::{
-    symboltree::SymbolTree, ScopeIdTraits, SymIdTraits, SymbolError, SymbolInfo,
-    SymbolResolutionBarrier, SymbolScopeId,
-};
+
+use super::symboltree::SymbolTree;
+use super::prelude::*;
 
 pub struct SymbolTreeReader<'a, SCOPEID, SYMID, SYMVALUE>
 where

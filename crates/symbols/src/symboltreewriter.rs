@@ -1,4 +1,6 @@
-use super::{SymbolError, SymbolScopeId, symboltree::SymbolTree,ScopeIdTraits, SymIdTraits};
+use super::symboltree::SymbolTree;
+
+use super::prelude::*;
 
 ////////////////////////////////////////////////////////////////////////////////
 pub struct SymbolTreeWriter<'a, SCOPEID, SYMID,SYMVALUE>

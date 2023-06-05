@@ -25,6 +25,10 @@ pub trait SymIdTraits:
 {
 }
 
+
+pub trait SymValueTraits : Clone {
+}
+
 impl ScopeIdTraits for u64 {}
 impl SymIdTraits for u64 {}
 

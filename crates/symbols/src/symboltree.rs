@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 use thin_vec::ThinVec;
+use super::prelude::*;
 
 use super::{
     symboltable::SymbolTable, symboltreereader::SymbolTreeReader,
-    symboltreewriter::SymbolTreeWriter, ScopeIdTraits, ScopedName, SymIdTraits, SymbolError,
-    SymbolInfo, SymbolResolutionBarrier, SymbolScopeId,
+    symboltreewriter::SymbolTreeWriter, 
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -21,11 +21,11 @@ where
     SYMID: SymIdTraits,
     SYMVALUE: Clone,
 {
-    pub tree: ego_tree::Tree<SymbolTable<SCOPEID, SYMID>>,
-    pub root_scope_id: SCOPEID,
-    pub next_scope_id: SCOPEID,
-    pub scope_id_to_node_id: HashMap<SCOPEID, SymbolNodeId>,
-    pub scope_id_to_symbol_info:
+    pub (crate) tree: ego_tree::Tree<SymbolTable<SCOPEID, SYMID>>,
+    pub (crate) root_scope_id: SCOPEID,
+    pub (crate) next_scope_id: SCOPEID,
+    pub (crate) scope_id_to_node_id: HashMap<SCOPEID, SymbolNodeId>,
+    pub (crate) scope_id_to_symbol_info:
         HashMap<SymbolScopeId<SCOPEID, SYMID>, SymbolInfo<SCOPEID, SYMID, SYMVALUE>>,
 }
 
@@ -37,8 +37,6 @@ where
     parent: Option<SCOPEID>,
     children: HashMap<String, SymbolTable<SCOPEID, SYMID>>,
 }
-
-
 
 impl<SCOPEID, SYMID, SYMVALUE> Default for SymbolTree<SCOPEID, SYMID, SYMVALUE>
 where
