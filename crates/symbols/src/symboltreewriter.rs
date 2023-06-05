@@ -96,9 +96,8 @@ where
     pub fn dump_scope(&self) {
         let x = self
             .sym_tree
-            .get_node_from_id(self.current_scope_id)
-            .unwrap();
-        println!("{:#?}", x.value())
+            .get_scope(self.current_scope_id);
+        println!("{:#?}", x)
     }
 }
 

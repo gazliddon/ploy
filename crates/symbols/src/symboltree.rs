@@ -25,6 +25,7 @@ where
     SYMID: SymIdTraits,
 {
     pub tree: ego_tree::Tree<SymbolTable<SCOPEID, SYMID>>,
+    pub root_scope_id : SCOPEID,
     pub next_scope_id: SCOPEID,
     pub scope_id_to_node_id: HashMap<SCOPEID, SymbolNodeId>,
     pub scope_id_to_symbol_info:
@@ -55,81 +56,56 @@ where
 
         Self {
             tree,
+            root_scope_id: 0.into(),
             next_scope_id: 1.into(),
             scope_id_to_node_id,
             scope_id_to_symbol_info: Default::default(),
         }
     }
 }
+
 ////////////////////////////////////////////////////////////////////////////////
-// Scope management
+// Uses ego tree
 impl<SCOPEID, SYMID, V> SymbolTree<SCOPEID, SYMID, V>
 where
     SCOPEID: ScopeIdTraits,
     SYMID: SymIdTraits,
 {
-
     pub fn get_parent_scope_id(&self, scope_id : SCOPEID) -> Option<SCOPEID> {
-        let node = self.get_node_from_id(scope_id).expect("Illegal scope id");
+        let node = self.get_node_from_id_2(scope_id).expect("Illegal scope id");
         node.parent().map(|n| n.value().get_scope_id())
     }
 
-    pub fn find_sub_scope_id(
+    fn children(&self, scope_id: SCOPEID) -> impl Iterator<Item=&SymbolTable<SCOPEID,SYMID>> + '_{
+        let node= self.get_node_from_id_2(scope_id).unwrap();
+        node.children().map(|n| n.value())
+    }
+
+    pub(crate) fn get_node_from_id_2(
         &self,
-        path: &[&str],
         scope_id: SCOPEID,
-    ) -> Result<SCOPEID, SymbolError<SCOPEID, SYMID>> {
-        let mut current_node = self.get_node_from_id(scope_id).unwrap();
-
-        for path_part in path {
-            let mut found = false;
-
-            for k in current_node.children() {
-                if path_part == &k.value().get_scope_name() {
-                    found = true;
-                    current_node = k;
-                }
-            }
-
-            if !found {
-                return Err(SymbolError::NoValue);
-            }
-        }
-
-        Ok(current_node.value().get_scope_id())
+    ) -> Result<SymbolNodeRef<SCOPEID, SYMID>, SymbolError<SCOPEID, SYMID>> {
+        let node_id = self.get_node_id_from_scope_id(scope_id)?;
+        self.tree.get(node_id).ok_or(SymbolError::InvalidScope)
     }
 
-    pub fn get_sub_scope_id(
-        &self,
-        name: &str,
-        scope_id: SCOPEID,
-    ) -> Result<SCOPEID, SymbolError<SCOPEID, SYMID>> {
-        let name = ScopedName::new(name);
-        assert!(name.is_relative());
-        let path = name.path();
-        self.find_sub_scope_id(path, scope_id)
+    pub(crate) fn get_scope(&self, scope_id: SCOPEID) -> Result<&SymbolTable<SCOPEID,SYMID>, SymbolError<SCOPEID,SYMID>> {
+        self.get_node_from_id_2(scope_id).map(|n| n.value())
     }
 
-    pub fn get_scope_id(&self, name: &str) -> Result<SCOPEID, SymbolError<SCOPEID, SYMID>> {
-        let name = ScopedName::new(name);
-        assert!(name.is_abs());
-        let scope_id = self.get_root_scope_id();
-        let path = name.path();
-        self.find_sub_scope_id(path, scope_id)
-    }
-}
 
-////////////////////////////////////////////////////////////////////////////////
-// Public functions
-impl<SCOPEID, SYMID, V> SymbolTree<SCOPEID, SYMID, V>
-where
-    SCOPEID: ScopeIdTraits,
-    SYMID: SymIdTraits,
-{
-    pub fn new() -> Self {
-        Self::default()
+    pub fn set_symbol_from_id(
+        &mut self,
+        symbol_id: SymbolScopeId<SCOPEID, SYMID>,
+        val: V,
+    ) -> Result<(), SymbolError<SCOPEID, SYMID>> {
+        let x = self
+            .scope_id_to_symbol_info
+            .get_mut(&symbol_id)
+            .ok_or(SymbolError::InvalidScope)?;
+        x.value = Some(val);
+        Ok(())
     }
-
     pub fn remove_symbol_for_id(
         &mut self,
         name: &str,
@@ -142,19 +118,6 @@ where
         } else {
             panic!("Change to an error")
         }
-    }
-
-    pub fn create_symbols_in_scope(
-        &mut self,
-        scope_id: SCOPEID,
-        names: &[String],
-    ) -> Result<ThinVec<SymbolScopeId<SCOPEID, SYMID>>, SymbolError<SCOPEID, SYMID>> {
-        let ret: Result<ThinVec<SymbolScopeId<SCOPEID, SYMID>>, SymbolError<SCOPEID, SYMID>> =
-            names
-                .iter()
-                .map(|name| self.create_symbol_in_scope(scope_id, name))
-                .collect();
-        ret
     }
 
     pub fn create_symbol_in_scope(
@@ -170,7 +133,6 @@ where
         self.scope_id_to_symbol_info.insert(symbol_id, si);
         Ok(symbol_id)
     }
-
     pub fn set_value_for_id(
         &mut self,
         id: SymbolScopeId<SCOPEID, SYMID>,
@@ -184,24 +146,30 @@ where
         Ok(())
     }
 
-    pub fn get_root_scope_id(&self) -> SCOPEID {
-        self.tree.root().value().get_scope_id()
-    }
 
-    pub fn scope_exists(&self, scope: SCOPEID) -> bool {
-        self.get_node_from_id(scope).map(|n| n.value()).is_ok()
-    }
-
-    pub fn get_symbols_from_id(
-        &self,
+    pub fn add_reference_symbol(
+        &mut self,
+        name: &str,
         scope_id: SCOPEID,
-    ) -> Result<&SymbolTable<SCOPEID, SYMID>, SymbolError<SCOPEID, SYMID>> {
-        self.get_node_from_id(scope_id).map(|n| n.value())
+        symbol_id: SymbolScopeId<SCOPEID, SYMID>,
+    ) -> Result<(), SymbolError<SCOPEID, SYMID>> {
+        let mut node = self.get_node_from_id_mut(scope_id).expect("Invalid scope");
+        node.value().add_reference_symbol(name, symbol_id)
     }
 
-    pub fn get_fqn_from_id(&self, scope_id: SCOPEID) -> String {
-        let scope = self.get_symbols_from_id(scope_id).expect("Invalid scope");
-        scope.get_scope_fqn_name().to_owned()
+    pub(crate) fn insert_new_table(
+        &mut self,
+        name: &str,
+        parent_id: SCOPEID,
+        barrier: SymbolResolutionBarrier,
+    ) -> SCOPEID {
+        let tab = self.create_new_table(name, parent_id, barrier);
+        let tab_id = tab.get_scope_id();
+        let parent_id = self.scope_id_to_node_id.get(&parent_id).unwrap();
+        let mut parent_mut = self.tree.get_mut(*parent_id).unwrap();
+        let mut n = parent_mut.append(tab);
+        self.scope_id_to_node_id.insert(tab_id, n.id());
+        n.value().get_scope_id()
     }
 
     pub fn resolve_label(
@@ -230,6 +198,142 @@ where
 
         Err(SymbolError::NotFound)
     }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Scope management
+
+
+
+
+impl<SCOPEID, SYMID, V> SymbolTree<SCOPEID, SYMID, V>
+where
+    SCOPEID: ScopeIdTraits,
+    SYMID: SymIdTraits,
+{
+    pub fn get_symbol_info_from_scoped_name(
+        &self,
+        name: &ScopedName,
+    ) -> Result<&SymbolInfo<SCOPEID, SYMID, V>, SymbolError<SCOPEID, SYMID>> {
+        assert!(name.is_abs());
+
+        let scopes = name.path();
+        let name = name.symbol();
+
+        let mut current_node = self.get_root_scope_id();
+
+        let mut found = false;
+
+        for path_part in scopes.iter() {
+            for c in self.children(current_node) {
+                if c.get_scope_name() == *path_part {
+                    current_node = c.get_scope_id();
+                    found = true;
+                    break;
+                }
+            }
+
+            if found == false {
+                return Err(SymbolError::NotFound);
+            }
+        }
+
+        self.get_symbol_info(name, current_node)
+    }
+    pub fn get_root_scope_id(&self) -> SCOPEID {
+        self.root_scope_id
+    }
+
+    pub fn create_or_get_scope_for_parent(&mut self, name: &str, id: SCOPEID) -> SCOPEID {
+        for v in self.children(id) {
+            if v.get_scope_name() == name {
+                let id = v.get_scope_id();
+                return id;
+            }
+        }
+        self.insert_new_table(name, id, SymbolResolutionBarrier::default())
+    }
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Public functions
+impl<SCOPEID, SYMID, V> SymbolTree<SCOPEID, SYMID, V>
+where
+    SCOPEID: ScopeIdTraits,
+    SYMID: SymIdTraits,
+{
+    pub fn get_sub_scope_id(
+        &self,
+        name: &str,
+        scope_id: SCOPEID,
+    ) -> Result<SCOPEID, SymbolError<SCOPEID, SYMID>> {
+        let name = ScopedName::new(name);
+        assert!(name.is_relative());
+        let path = name.path();
+        self.find_sub_scope_id(path, scope_id)
+    }
+
+    pub fn get_scope_id(&self, name: &str) -> Result<SCOPEID, SymbolError<SCOPEID, SYMID>> {
+        let name = ScopedName::new(name);
+        assert!(name.is_abs());
+        let scope_id = self.get_root_scope_id();
+        let path = name.path();
+        self.find_sub_scope_id(path, scope_id)
+    }
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn find_sub_scope_id(
+        &self,
+        path: &[&str],
+        scope_id: SCOPEID,
+    ) -> Result<SCOPEID, SymbolError<SCOPEID, SYMID>> {
+        let mut current_node = scope_id;
+
+        for path_part in path {
+            let mut found = false;
+
+            for k in self.children(current_node) {
+                if path_part == &k.get_scope_name() {
+                    found = true;
+                    current_node = k.get_scope_id();
+                }
+            }
+
+            if !found {
+                return Err(SymbolError::NoValue);
+            }
+        }
+
+        Ok(current_node)
+    }
+
+
+    pub fn create_symbols_in_scope(
+        &mut self,
+        scope_id: SCOPEID,
+        names: &[String],
+    ) -> Result<ThinVec<SymbolScopeId<SCOPEID, SYMID>>, SymbolError<SCOPEID, SYMID>> {
+        let ret: Result<ThinVec<SymbolScopeId<SCOPEID, SYMID>>, SymbolError<SCOPEID, SYMID>> =
+            names
+                .iter()
+                .map(|name| self.create_symbol_in_scope(scope_id, name))
+                .collect();
+        ret
+    }
+
+
+    pub fn scope_exists(&self, scope: SCOPEID) -> bool {
+        self.scope_id_to_node_id.get(&scope).is_some()
+    }
+
+    pub fn get_fqn_from_id(&self, scope_id: SCOPEID) -> String {
+        let scope = self.get_scope(scope_id).expect("Invalid scope");
+        scope.get_scope_fqn_name().to_owned()
+    }
+
 
     pub fn get_writer(&mut self, scope_id: SCOPEID) -> SymbolTreeWriter<SCOPEID, SYMID, V> {
         SymbolTreeWriter::new(self, scope_id)
@@ -264,82 +368,21 @@ where
         self.get_symbol_info_from_scoped_name(&name)
     }
 
-    pub fn get_symbol_info_from_scoped_name(
-        &self,
-        name: &ScopedName,
-    ) -> Result<&SymbolInfo<SCOPEID, SYMID, V>, SymbolError<SCOPEID, SYMID>> {
-        assert!(name.is_abs());
-
-        let scopes = name.path();
-        let name = name.symbol();
-
-        let mut current_node = self.tree.root();
-
-        let mut found = false;
-
-        for path_part in scopes.iter() {
-            for c in current_node.children() {
-                if c.value().get_scope_name() == *path_part {
-                    current_node = c;
-                    found = true;
-                    break;
-                }
-            }
-
-            if found == false {
-                return Err(SymbolError::NotFound);
-            }
-        }
-
-        self.get_symbol_info(name, current_node.value().get_scope_id())
-    }
 
     pub fn get_symbol_info(
         &self,
         name: &str,
         scope_id: SCOPEID,
     ) -> Result<&SymbolInfo<SCOPEID, SYMID, V>, SymbolError<SCOPEID, SYMID>> {
-        let n = self.get_symbols_from_id(scope_id)?;
+        let n = self.get_scope(scope_id)?;
         let id = n.get_symbol_id(name)?;
         self.scope_id_to_symbol_info
             .get(&id)
             .ok_or(SymbolError::NotFound)
     }
 
-    pub fn add_reference_symbol(
-        &mut self,
-        name: &str,
-        scope_id: SCOPEID,
-        symbol_id: SymbolScopeId<SCOPEID, SYMID>,
-    ) -> Result<(), SymbolError<SCOPEID, SYMID>> {
-        let mut node = self.get_node_from_id_mut(scope_id).expect("Invalid scope");
-        node.value().add_reference_symbol(name, symbol_id)
-    }
 
-    pub fn create_or_get_scope_for_parent(&mut self, name: &str, id: SCOPEID) -> SCOPEID {
-        let node = self.get_node_from_id(id).expect("Invalid scope");
 
-        for c in node.children() {
-            if c.value().get_scope_name() == name {
-                let id = c.value().get_scope_id();
-                return id;
-            }
-        }
-        self.insert_new_table(name, id, SymbolResolutionBarrier::default())
-    }
-
-    pub fn set_symbol_from_id(
-        &mut self,
-        symbol_id: SymbolScopeId<SCOPEID, SYMID>,
-        val: V,
-    ) -> Result<(), SymbolError<SCOPEID, SYMID>> {
-        let mut x = self
-            .scope_id_to_symbol_info
-            .get_mut(&symbol_id)
-            .ok_or(SymbolError::InvalidScope)?;
-        x.value = Some(val);
-        Ok(())
-    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -387,13 +430,6 @@ where
             .ok_or(SymbolError::InvalidScope)
     }
 
-    pub(crate) fn get_node_from_id(
-        &self,
-        scope_id: SCOPEID,
-    ) -> Result<SymbolNodeRef<SCOPEID, SYMID>, SymbolError<SCOPEID, SYMID>> {
-        let node_id = self.get_node_id_from_scope_id(scope_id)?;
-        self.tree.get(node_id).ok_or(SymbolError::InvalidScope)
-    }
 
     pub(crate) fn get_node_from_id_mut(
         &mut self,
@@ -403,20 +439,6 @@ where
         self.tree.get_mut(node_id).ok_or(SymbolError::InvalidScope)
     }
 
-    pub(crate) fn insert_new_table(
-        &mut self,
-        name: &str,
-        parent_id: SCOPEID,
-        barrier: SymbolResolutionBarrier,
-    ) -> SCOPEID {
-        let tab = self.create_new_table(name, parent_id, barrier);
-        let tab_id = tab.get_scope_id();
-        let parent_id = self.scope_id_to_node_id.get(&parent_id).unwrap();
-        let mut parent_mut = self.tree.get_mut(*parent_id).unwrap();
-        let mut n = parent_mut.append(tab);
-        self.scope_id_to_node_id.insert(tab_id, n.id());
-        n.value().get_scope_id()
-    }
 
     fn create_new_table(
         &mut self,
@@ -430,129 +452,6 @@ where
         SymbolTable::new(name, &fqn, scope_id, barrier)
     }
 }
-
-////////////////////////////////////////////////////////////////////////////////
-// Functions to do with serialization
-fn walk_syms<F, SCOPEID, SYMID, V>(_node: SymbolNodeRef<SCOPEID, SYMID>, _scope: String, _f: &mut F)
-where
-    F: FnMut(&SymbolInfo<SCOPEID, SYMID, V>),
-    SCOPEID: ScopeIdTraits,
-    SYMID: SymIdTraits,
-{
-    // for _info in node.value().get_symbols() {
-    //     panic!()
-    //     // f(info)
-    // }
-
-    // for n in node.children() {
-    //     let scope = format!("{scope}::{}", n.value().get_scope_name());
-    //     walk_syms(n, scope, f);
-    // }
-}
-
-pub fn print_syms<SCOPEID, SYMID, V>(node: SymbolNodeRef<SCOPEID, SYMID>, scope: String)
-where
-    SCOPEID: ScopeIdTraits,
-    SYMID: SymIdTraits,
-    V: std::fmt::Debug,
-{
-    walk_syms(node, scope, &mut |sym: &SymbolInfo<SCOPEID, SYMID, V>| {
-        println!("{} = {:?}", sym.scoped_name(), sym.value)
-    })
-}
-
-pub fn display_tree<SCOPEID, SYMID, V>(
-    out: &mut std::fmt::Formatter<'_>,
-    node: SymbolNodeRef<SCOPEID, SYMID>,
-    depth: usize,
-) -> Result<(), std::fmt::Error>
-where
-    SCOPEID: ScopeIdTraits + std::fmt::Debug,
-    SYMID: SymIdTraits + std::fmt::Debug,
-    V: std::fmt::Debug,
-{
-    let indent = " ".repeat(depth * 4);
-
-    write!(out, "{indent}{}", node.value())?;
-
-    for k in node.children() {
-        display_tree::<SCOPEID, SYMID, V>(out, k, depth + 1)?;
-    }
-
-    Ok(())
-}
-
-impl<SCOPEID, SYMID, V> std::fmt::Display for SymbolTree<SCOPEID, SYMID, V>
-where
-    SCOPEID: ScopeIdTraits + std::fmt::Debug,
-    SYMID: SymIdTraits + std::fmt::Debug,
-    V: std::fmt::Debug,
-{
-    fn fmt(&self, out: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        display_tree::<SCOPEID, SYMID, V>(out, self.tree.root(), 0)
-    }
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Walking
-
-pub enum Walker<'a, V> {
-    Scope(&'a str),
-    Sym(&'a str, &'a Option<V>),
-    RefSym(&'a str, &'a str, &'a Option<V>),
-}
-
-impl<SCOPEID, SYMID, V> SymbolTree<SCOPEID, SYMID, V>
-where
-    SCOPEID: ScopeIdTraits,
-    SYMID: SymIdTraits,
-    V: std::fmt::Debug,
-{
-    pub fn walk_scope<F>(&self, id: SCOPEID, f: &F)
-    where
-        F: Fn(Walker<V>, usize),
-    {
-        let node_id = self.get_node_from_id(id).unwrap().id();
-        self.recurse(node_id, 0, f)
-    }
-
-    pub fn walk_tree<F>(&self, f: &F)
-    where
-        F: Fn(Walker<V>, usize),
-    {
-        self.walk_scope(self.get_root_scope_id(), f)
-    }
-
-    fn recurse<F>(&self, node_id: SymbolNodeId, depth: usize, f: &F)
-    where
-        F: Fn(Walker<V>, usize),
-    {
-        let node = self.tree.get(node_id).unwrap();
-        let tab = node.value();
-        let scope_name = tab.get_scope_name().to_string();
-        let scope_id = tab.get_scope_id();
-
-        f(Walker::Scope(&scope_name), depth);
-
-        for (name, id) in tab.get_reference_syms().iter() {
-            let sym = self.get_symbol_info_from_id(*id).unwrap();
-            let orig_name = sym.scoped_name();
-            f(Walker::RefSym(name, orig_name, &sym.value), depth);
-        }
-
-        for (name, sym_id) in tab.get_syms() {
-            let symbol_id = SymbolScopeId::new(scope_id, *sym_id);
-            let sym = self.get_symbol_info_from_id(symbol_id).unwrap();
-            f(Walker::Sym(name, &sym.value), depth);
-        }
-
-        for kid in node.children() {
-            self.recurse(kid.id(), depth + 1, f)
-        }
-    }
-}
-
-////////////////////////////////////////////////////////////////////////////////
 
 #[allow(unused_imports)]
 mod test {
