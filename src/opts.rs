@@ -1,14 +1,14 @@
 use serde::Deserialize;
 use std::path::PathBuf;
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Copy)]
 pub enum Action {
     Build,
     Check,
     Lsp,
 }
 
-#[derive(Default,Debug, Clone, Deserialize)]
+#[derive(Default,Debug, Clone, Deserialize, Copy)]
 pub enum Verbosity {
     Silent,
     #[default]
@@ -25,6 +25,7 @@ pub struct Opts {
     pub action: Action,
     pub verbosity: Verbosity,
 }
+
 pub const DEFAULT_PROJECT_FILE : &str = "Ploy.toml";
 
 impl Default for Opts {

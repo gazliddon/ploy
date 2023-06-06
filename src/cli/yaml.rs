@@ -1,8 +1,7 @@
 use std::path::Path;
 use crate::opts::Opts;
 use serde::Deserialize;
-
-use super::CliErrorKind;
+use super::error::CliErrorKind;
 
 #[derive(Debug, Clone, Deserialize, Default)]
 #[serde(default)]

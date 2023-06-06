@@ -17,7 +17,7 @@ use unraveler::Item;
 fn main() -> anyhow::Result<()> {
     use frontend::*;
 
-    let opts = cli::parse_opts()?;
+    let opts = cli::parse_opts(opts::DEFAULT_PROJECT_FILE)?;
 
     let mut syms = crate::symbols::SymbolTree::new();
 
