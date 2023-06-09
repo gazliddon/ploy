@@ -146,6 +146,7 @@ impl<'a> ParseText<'a> {
         Self { txt }
     }
 }
+
 #[derive(Clone, Debug, Copy, PartialEq)]
 pub struct FragementLocation<X: Clone> {
     pub loc: Location,
@@ -156,15 +157,5 @@ pub struct FragementLocation<X: Clone> {
 pub struct Token<X: Clone> {
     pub kind: TokenKind,
     pub location: FragementLocation<X>,
-}
-
-fn to_tokens_kinds(program_txt: &str) -> Vec<(TokenKind, std::ops::Range<usize>)> {
-    TokenKind::lexer(program_txt)
-        .spanned()
-        .map(|(tok_res, pos)| match tok_res {
-            Ok(kind) => (kind, pos),
-            Err(_) => (TokenKind::Error, pos),
-        })
-        .collect()
 }
 

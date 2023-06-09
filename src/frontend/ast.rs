@@ -9,7 +9,6 @@ use unraveler::{
 };
 
 use crate::{symbols::ScopeId, sources::SourceFile};
-
 use super::prelude::*;
 
 #[derive(Clone, PartialEq, Debug, Default)]

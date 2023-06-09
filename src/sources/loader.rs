@@ -6,6 +6,8 @@ use thin_vec::ThinVec;
 
 use super::prelude::*;
 
+pub type FileId = u64;
+
 pub struct SourceLoader {
     name_to_id: HashMap<PathBuf, FileId>,
     id_to_file: HashMap<FileId, SourceFile>,

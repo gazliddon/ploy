@@ -1,10 +1,6 @@
-use thin_vec::ThinVec;
-use thiserror::Error;
-use std::path::PathBuf;
-
 use super::SearchPathsError;
 
-#[derive(Clone, Error, Debug)]
+#[derive(Clone, thiserror::Error, Debug)]
 pub enum SourcesError {
     #[error(transparent)]
     SearchPathsError(#[from] SearchPathsError),

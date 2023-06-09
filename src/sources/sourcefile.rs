@@ -1,35 +1,11 @@
 use std::collections::HashMap;
-pub type FileId = u64;
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum SourceOrigin {
-    Text,
-    File(FileId, PathBuf),
-}
+use super::prelude::*;
 
 #[derive(Clone, Debug)]
 pub struct SourceFile {
     pub origin: SourceOrigin,
     pub text: String,
     lines: Lines,
-}
-
-/// Describes a point in some text
-pub struct Location {
-    line: usize,
-    col: usize,
-}
-
-/// Describes a span in some text
-pub struct Span {
-    location: Location,
-    len: usize,
-}
-
-/// Describes a span of text in file
-pub struct FileSpan {
-    id: FileId,
-    span: Span,
 }
 
 impl SourceFile {
@@ -41,14 +17,17 @@ impl SourceFile {
         }
     }
 
+    pub fn get_location(&self, _offset: usize) -> Option<Location> {
+        panic!()
+    }
+
     pub fn get_line(&self, line: usize) -> Option<&str> {
         self.lines.get_line_range(line).map(|r| &self.text[r])
     }
 
-    pub fn get_line_from_offset(&self, offset: usize) -> Option<&str> {
+    pub fn get_location_from_offset(&self, offset: usize) -> Option<Location> {
         self.lines
-            .get_line_from_offset(offset)
-            .and_then(|l| self.get_line(l))
+            .get_location_from_offset(offset)
     }
 
     fn in_bounds(&self, r: &std::ops::Range<usize>) -> bool {
@@ -62,7 +41,7 @@ impl SourceFile {
 }
 
 #[derive(Clone, Debug)]
-struct Lines {
+pub (crate) struct Lines {
     offsets: Vec<std::ops::Range<usize>>,
 }
 
@@ -79,11 +58,26 @@ impl Lines {
         }
     }
 
-    pub fn get_line_from_offset(&self, offset: usize) -> Option<usize> {
-        let res = self.offsets.binary_search_by(|x| x.start.cmp(&offset));
+    pub fn get_location_from_offset(&self, offset: usize) -> Option<Location> {
+        let line = self.offsets.binary_search_by(|x| {
+            if x.contains(&offset) {
+                std::cmp::Ordering::Equal
+            } else {
+                if offset < x.start {
+                    std::cmp::Ordering::Greater
+                } else {
+                    std::cmp::Ordering::Less
+                }
+            }
+        });
 
-        match res {
-            Ok(res) => Some(res),
+        match line {
+            Ok(line) => {
+                let line_start = self.offsets[line].start;
+                let col = offset - line_start;
+
+                Some(Location { line, col })
+            }
             Err(_) => None,
         }
     }
@@ -121,7 +115,7 @@ impl SourceLoader {
         }
 
         let p = p.as_ref().to_path_buf();
-        let source = SourceFile::new(text, SourceOrigin::File(id,p.clone()));
+        let source = SourceFile::new(text, SourceOrigin::File(id, p.clone()));
         self.name_to_id.insert(p.clone(), id);
         self.id_to_file.insert(id, source);
 
@@ -155,4 +149,3 @@ impl SourceLoader {
         }
     }
 }
-
