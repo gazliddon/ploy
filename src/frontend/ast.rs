@@ -1,4 +1,6 @@
 use std::{collections::HashMap, default};
+use logos::Source;
+use symbols::SymbolTree;
 use thin_vec::{thin_vec, ThinVec};
 
 use unraveler::{
@@ -6,7 +8,7 @@ use unraveler::{
     ParseError,
 };
 
-use crate::symbols::ScopeId;
+use crate::{symbols::ScopeId, sources::SourceFile};
 
 use super::prelude::*;
 
@@ -107,6 +109,7 @@ pub struct MetaData {
 pub struct Ast {
     pub tree: AstTree,
     pub meta_data: HashMap<AstNodeId, MetaData>,
+    pub source_file: crate::sources::SourceFile,
 }
 
 impl Ast {
@@ -151,10 +154,11 @@ impl Ast {
         }
     }
 
-    fn new(parse_node: ParseNode, tokes: &[Token]) -> Self {
+    fn new(parse_node: ParseNode, tokes: &[Token], source_file: SourceFile) -> Self {
         let mut ret = Self {
             tree: AstTree::new(Default::default()),
             meta_data: Default::default(),
+            source_file
         };
 
         ret.add_node(None, parse_node, tokes);
@@ -163,7 +167,7 @@ impl Ast {
     }
 }
 
-pub fn to_ast(tokes: &[Token]) -> Result<Ast, FrontEndError> {
+pub fn to_ast(tokes: &[Token], source_file: SourceFile) -> Result<Ast, FrontEndError> {
     let tokens = Span::new(0, tokes);
     let (rest, matched) = super::parsers::parse_program(tokens)?;
 
@@ -172,7 +176,7 @@ pub fn to_ast(tokes: &[Token]) -> Result<Ast, FrontEndError> {
         panic!("Didn't consume all input");
     }
 
-    let ast = Ast::new(matched, tokes);
+    let ast = Ast::new(matched, tokes, source_file);
 
     Ok(ast)
 }

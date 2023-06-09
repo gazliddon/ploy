@@ -34,7 +34,7 @@ fn file_to_ast<P: AsRef<Path>>(_opts: Opts, p : P) -> Result<Ast,FrontEndError> 
     let sf = loader.get_source_file(source_id).expect("My source file");
     let tokes = tokenize(sf);
 
-    let mut ast = to_ast(&tokes)?;
+    let mut ast = to_ast(&tokes, sf.clone())?;
     ast.process(&mut syms, sf)?;
 
     Ok(ast)

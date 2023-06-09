@@ -29,7 +29,7 @@ pub trait Item: Copy {
 // }
 
 #[derive(Copy, Clone, Debug)]
-pub struct Span<'a, I>
+pub struct Span<'a, I, >
 where
     I: Item,
 {
@@ -54,8 +54,8 @@ where
     }
 
     pub fn new(position: usize, span: &'a [I]) -> Self {
-        Self { position, span }
-    }
+        Self { position, span,  
+    }}
 
     pub fn len(&self) -> usize {
         self.span.len()
