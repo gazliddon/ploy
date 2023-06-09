@@ -1,10 +1,11 @@
 use crate::sources::{FileSpan, SourceFile, SourceOrigin, SourceSpan};
 
-use super::tokens::{FragementLocation, ParseText};
+use super::tokens::ParseText;
 
 use logos::Logos;
 
 use super::prelude::*;
+use super::tokens::Location;
 
 pub(crate) type Token<'a> = super::tokens::Token<ParseText<'a>>;
 pub(crate) type SlimToken = super::tokens::Token<FileSpan>;
@@ -66,37 +67,25 @@ fn to_tokens(source_file: &SourceFile) -> Vec<Token> {
         .into_iter()
         .map(|(kind, r)| Token {
             kind,
-            location: FragementLocation {
-                loc: r.clone().into(),
+            location: Location::new(r.start, r.len()),
                 extra: ParseText::new(&source_file.text[r]),
-            },
         })
         .collect()
 }
+
 fn to_slim_tokens(source_file: &SourceFile) -> Vec<SlimToken> {
     to_tokens_kinds(source_file)
         .into_iter()
         .map(|(kind, r)| {
 
-            let SourceOrigin::File(id,_) = source_file.origin else {
-                panic!()
-            };
-
-            let loc = source_file
-                .get_location_from_offset(r.start)
+            let file_span = source_file
+                .get_file_span_from_offset(r.start)
                 .expect("What?");
-            let span = SourceSpan {
-                len: r.len(),
-                location: loc,
-            };
 
-            let frag = FragementLocation {
-                loc: r.clone().into(),
-                extra: FileSpan { id, span },
-            };
             SlimToken {
                 kind,
-                location: frag,
+                location: Location::new(r.start,r.len()),
+                extra: file_span,
             }
         })
         .collect()

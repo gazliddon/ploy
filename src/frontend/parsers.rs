@@ -89,7 +89,7 @@ fn parse_builtin(input: Span) -> PResult<ParseNode> {
 }
 
 fn match_text<'a>(t: &'a Token<'a>, txt: &str) -> bool {
-    t.location.extra.txt == txt
+    t.extra.txt == txt
 }
 
 fn parse_string(input: Span) -> PResult<ParseNode> {

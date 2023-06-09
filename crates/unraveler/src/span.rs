@@ -1,8 +1,9 @@
 use crate::error::{PResult, ParseError, ParseErrorKind, Severity};
+
 use crate::traits::*;
 
-pub trait Item: Copy {
-    type Kind: Copy + Clone + PartialEq;
+pub trait Item {
+    type Kind: Clone + PartialEq;
 
     fn is_same_kind<I>(&self, other: &I) -> bool
     where
@@ -18,18 +19,8 @@ pub trait Item: Copy {
     fn get_kind(&self) -> Self::Kind;
 }
 
-// impl<X> Item for X
-//     where X: Copy + PartialEq
-// {
-//     type Kind = X;
-
-//     fn get_kind(&self) -> Self::Kind {
-//         *self
-//     }
-// }
-
 #[derive(Copy, Clone, Debug)]
-pub struct Span<'a, I, >
+pub struct Span<'a, I >
 where
     I: Item,
 {

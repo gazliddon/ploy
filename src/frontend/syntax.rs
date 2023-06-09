@@ -25,7 +25,7 @@ pub enum SyntaxErrorKind {
 }
 
 fn get_str<'a>(x: Token<'a>, txt: &'a str) -> &'a str {
-    &txt[x.location.loc.as_range()]
+    &txt[x.location.as_range()]
 }
 
 fn to_kinds(x: &[Token], txt: &str) -> Vec<(TokenKind, String)> {

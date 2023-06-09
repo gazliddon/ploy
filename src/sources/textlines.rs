@@ -9,12 +9,17 @@ impl Lines {
     pub fn new(text: &str) -> Self {
         let is_cr = |v| (v == b'\n');
         let filter = |(i, v)| is_cr(v).then_some(i);
-        let eof = text.len();
-        let mut offsets: Vec<_> = text.bytes().enumerate().filter_map(filter).collect();
-        offsets.push(eof);
+
+        let offsets: Vec<_> = text.bytes().enumerate().filter_map(filter).collect();
+        let mut x = vec![0];
+        x.extend(offsets.into_iter());
+        x.push(text.len());
+        let mut iter_x = x.iter();
+        iter_x.next().expect("What?");
+        let offsets= x.iter().zip(iter_x).map(|(s, e)| *s..*e).collect();
 
         Self {
-            offsets: offsets.iter().zip(&offsets).map(|(s, e)| *s..*e).collect(),
+            offsets
         }
     }
 

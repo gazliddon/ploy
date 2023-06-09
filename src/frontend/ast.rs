@@ -79,11 +79,11 @@ impl AstNode {
 
     fn from_parse_node(node: ParseNode, _tokes: &[Token]) -> Self {
         let tokes_range = &_tokes[node.range.clone()];
-        let start_t = &tokes_range.first().unwrap().location.loc;
-        let end_t = &tokes_range.last().unwrap().location.loc;
+        let start_t = &tokes_range.first().unwrap().location.as_range();
+        let end_t = &tokes_range.last().unwrap().location.as_range();
 
         let start = start_t.start;
-        let end = end_t.start + end_t.len;
+        let end = end_t.start + end_t.len();
 
         Self {
             kind: node.kind,

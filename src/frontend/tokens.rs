@@ -128,18 +128,20 @@ pub struct Location {
     pub start: usize,
     pub len: usize,
 }
+
 impl Location {
     pub fn as_range(&self) -> std::ops::Range<usize> {
         self.start..self.start+self.len
     }
+    pub fn new(start: usize, len: usize) -> Self {
+        Self {start,len}
+    }
 }
-
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ParseText<'a> {
     pub txt: &'a str,
 }
-
 
 impl<'a> ParseText<'a> {
     pub fn new(txt: &'a str) -> Self {
@@ -147,15 +149,11 @@ impl<'a> ParseText<'a> {
     }
 }
 
-#[derive(Clone, Debug, Copy, PartialEq)]
-pub struct FragementLocation<X: Clone> {
-    pub loc: Location,
+#[derive(Clone, Debug, PartialEq, Copy)]
+pub struct Token<X: Clone> {
+    pub kind: TokenKind,
+    pub location: Location,
     pub extra: X,
 }
 
-#[derive(Clone, Debug, Copy, PartialEq)]
-pub struct Token<X: Clone> {
-    pub kind: TokenKind,
-    pub location: FragementLocation<X>,
-}
 

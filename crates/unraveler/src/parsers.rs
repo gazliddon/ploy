@@ -230,8 +230,8 @@ pub fn is_a<SP, C, E>(
     isa: C,
 ) -> impl FnMut(SP) -> Result<(SP, <<SP as Collection>::Item as Item>::Kind), E>
 where
-    SP: Collection + Splitter<E>,
-    <SP as Collection>::Item: PartialEq + Copy + Item,
+    SP: Collection + Splitter<E> + Clone,
+    <SP as Collection>::Item: PartialEq + Item,
     C: Collection,
     <C as Collection>::Item: PartialEq + Copy + Item,
     <<SP as Collection>::Item as Item>::Kind: PartialEq<<<C as Collection>::Item as Item>::Kind>,
@@ -241,15 +241,15 @@ where
         if input.length() == 0 {
             Err(ParseError::from_error(&input, ParseErrorKind::NoMatch))
         } else {
-            let k = input.at(0).map(|x| x.get_kind());
+            let k = input.at(0).map(|x| x.get_kind()).clone();
 
             for i in 0..isa.length() {
                 let ik = isa.at(i).map(|x| x.get_kind());
 
-                match (k, ik) {
+                match (k.clone(), ik) {
                     (Some(a), Some(b)) => {
                         if a == b {
-                            let r = input.drop(1).map(|x| (x, a)).map_err(|_| {
+                            let r = input.drop(1).map(|x| (x, a.clone())).map_err(|_| {
                                 ParseError::from_error(&input, ParseErrorKind::NoMatch)
                             });
                             return r;
