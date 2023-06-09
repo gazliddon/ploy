@@ -2,7 +2,7 @@ use std::{collections::HashMap, default};
 use thin_vec::{thin_vec, ThinVec};
 
 use unraveler::{
-    alt, is_a, many0, many1, pair, preceded, sep_pair, tag, tuple, wrapped, Collection, Item,
+    alt, is_a, many0, many1, pair, preceded, sep_pair, tag, tuple, wrapped_cut, Collection, Item,
     ParseError,
 };
 
@@ -37,6 +37,10 @@ pub enum AstNodeKind {
     Or,
     Do,
     Macro,
+    Arg,
+    Args,
+    LetArg,
+    LetArgs,
     SetScope(ScopeId),
     MetaData,
     #[default]
@@ -159,7 +163,7 @@ impl Ast {
     }
 }
 
-pub fn to_ast(tokes: &[Token]) -> Result<Ast, PlError> {
+pub fn to_ast(tokes: &[Token]) -> Result<Ast, FrontEndError> {
     let tokens = Span::new(0, tokes);
     let (rest, matched) = super::parsers::parse_program(tokens)?;
 

@@ -8,26 +8,44 @@ mod opts;
 mod symbols;
 mod value;
 mod ir;
+mod compile;
+mod sources;
 
+use std::path::Path;
 use anyhow::Context;
+
+use frontend::FrontEndError;
 use thiserror::Error;
 use toml::to_string;
 use unraveler::Item;
 
-fn main() -> anyhow::Result<()> {
+use frontend::Ast;
+
+use sources::PathSearcher;
+use opts::Opts;
+
+
+
+fn file_to_ast<P: AsRef<Path>>(_opts: Opts, p : P) -> Result<Ast,FrontEndError> {
     use frontend::*;
-
-    let opts = cli::parse_opts(opts::DEFAULT_PROJECT_FILE)?;
-
     let mut syms = crate::symbols::SymbolTree::new();
-
-    let program_txt =
-        std::fs::read_to_string(opts.project_file).context("Can't load project file")?;
-    let tokes = tokenize(&program_txt);
+    let mut loader = sources::SourceLoader::new();
+    let source_id = loader.load_file(p).expect("A source file");
+    let sf = loader.get_source_file(source_id).expect("My source file");
+    let tokes = tokenize(sf);
 
     let mut ast = to_ast(&tokes)?;
-    ast.process(&mut syms, &program_txt)?;
+    ast.process(&mut syms, sf)?;
+
+    Ok(ast)
+}
+
+fn main() -> anyhow::Result<()> {
+
+    let opts = cli::parse_opts(opts::DEFAULT_PROJECT_FILE)?;
+    let ast = file_to_ast(opts.clone(), &opts.project_file)?;
 
     println!("{:#?}", ast);
     Ok(())
 }
+

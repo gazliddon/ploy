@@ -13,7 +13,7 @@ mod prelude {
     pub use super::{
         ast::{to_ast, Ast, AstNode, AstNodeKind, },
         ast::{AstNodeId, AstNodeMut, AstNodeRef},
-        error::{FrontEndError, PResult, PlError},
+        error::{FrontEndErrorKind, PResult, FrontEndError},
         ploytokens::tokenize,
     };
 

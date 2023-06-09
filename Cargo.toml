@@ -18,6 +18,7 @@ toml="*"
 unraveler  = {path = "crates/unraveler"}
 symbols  = {path = "crates/symbols"}
 ego-tree="*"
+itertools="*"
 
 serde = { version = "*", features = ["derive"] }
 serde_json = "*"

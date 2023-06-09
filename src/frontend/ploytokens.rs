@@ -1,3 +1,5 @@
+use crate::sources::{SourceOrigin, SourceFile};
+
 use super::tokens::{ FragementLocation,ParseText};
 use logos::Logos;
 
@@ -37,8 +39,8 @@ impl unraveler::Collection for TokenKind {
     }
 }
 
-fn to_tokens_kinds(program_txt: &str) -> Vec<(TokenKind, std::ops::Range<usize>)> {
-    TokenKind::lexer(program_txt)
+fn to_tokens_kinds(source_file: &SourceFile) -> Vec<(TokenKind, std::ops::Range<usize>)> {
+    TokenKind::lexer(&source_file.text)
         .spanned()
         .map(|(tok_res, pos)| match tok_res {
             Ok(kind) => (kind, pos),
@@ -47,20 +49,20 @@ fn to_tokens_kinds(program_txt: &str) -> Vec<(TokenKind, std::ops::Range<usize>)
         .collect()
 }
 
-fn to_tokens(program_txt: &str) -> Vec<Token> {
-    to_tokens_kinds(program_txt)
+fn to_tokens(source_file: &SourceFile) -> Vec<Token> {
+    to_tokens_kinds(source_file)
         .into_iter()
         .map(|(kind, r)| Token {
             kind,
             location: FragementLocation {
                 loc: r.clone().into(),
-                extra: ParseText::new(&program_txt[r]),
+                extra: ParseText::new(&source_file.text[r]),
             },
         })
         .collect()
 }
 
-pub fn tokenize(program_txt: &str) -> Vec<Token> {
-    let tokes = to_tokens(program_txt);
+pub fn tokenize(source_file: &SourceFile) -> Vec<Token> {
+    let tokes = to_tokens(source_file);
     tokes
 }

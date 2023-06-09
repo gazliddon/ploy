@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt::Display};
+use std::{collections::HashMap, fmt::{ Display, Debug }};
 use super::prelude::*;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -36,8 +36,8 @@ where
 
 impl<SCOPEID, SYMID> Display for SymbolTable<SCOPEID, SYMID>
 where
-    SCOPEID: ScopeIdTraits + std::fmt::Debug,
-    SYMID: SymIdTraits + std::fmt::Debug,
+    SCOPEID: ScopeIdTraits + Debug,
+    SYMID: SymIdTraits + Debug,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "Scope: {}", self.scope)?;

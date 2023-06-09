@@ -126,8 +126,7 @@ where
         match ret {
             Ok(r) => Ok(r),
             Err(mut e) => {
-                e.set_severity(Severity::Fatal);
-                Err(e)
+                Err(e.set_severity(Severity::Fatal))
             }
         }
     }
@@ -172,8 +171,33 @@ where
     move |rest: SP| {
         let (rest, _) = rest.tag(open)?;
         let (rest, matched) = p.parse(rest)?;
-        let (rest, _) = rest.tag(close)?;
-        Ok((rest, matched))
+        let ret = rest.tag(close)?;
+        Ok((rest,matched))
+    }
+}
+
+pub fn wrapped_cut<SP, OTHER, E, P, O>(
+    open: OTHER,
+    mut p: P,
+    close: OTHER,
+) -> impl FnMut(SP) -> Result<(SP, O), E>
+where
+    SP: Collection + Splitter<E>,
+    <SP as Collection>::Item: Item,
+    <<SP as Collection>::Item as Item>::Kind:
+        PartialEq<<<OTHER as Collection>::Item as Item>::Kind>,
+
+    OTHER: Collection + Copy,
+    <OTHER as Collection>::Item: Item + Copy,
+
+    E: ParseError<SP> + std::fmt::Debug,
+    P: Parser<SP, O, E>,
+{
+    move |rest: SP| {
+        let (rest, _) = rest.tag(open)?;
+        let (rest, matched) = p.parse(rest)?;
+        let (rest,_) = cut(tag(close))(rest)?;
+        Ok((rest,matched))
     }
 }
 

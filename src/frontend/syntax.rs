@@ -2,7 +2,9 @@
 /// and other processing
 use super::prelude::*;
 
+use crate::sources::SourceFile;
 use crate::symbols::{ScopeId, SymbolTree};
+
 use anyhow::Context;
 use serde::Deserialize;
 use std::{collections::HashMap, io::Cursor};
@@ -74,7 +76,7 @@ fn get_rec_ids(tree: &AstTree, id: AstNodeId, nodes: &mut Vec<AstNodeId>) {
 }
 
 impl Ast {
-    pub fn process(&mut self, syms: &mut SymbolTree, source: &str) -> Result<(), FrontEndError> {
+    pub fn process(&mut self, syms: &mut SymbolTree, source: &SourceFile) -> Result<(), FrontEndError> {
         self.add_scopes(syms, source)?;
         self.intern_symbols(syms, source)?;
         self.create_values(syms, source)?;
@@ -128,7 +130,7 @@ impl Ast {
     }
 
     /// Add scope setting, unsetting for all forms that need it
-    fn add_scopes(&mut self, syms: &mut SymbolTree, _source: &str) -> Result<(), FrontEndError> {
+    fn add_scopes(&mut self, syms: &mut SymbolTree, _source: &SourceFile) -> Result<(), FrontEndError> {
         let id = self.tree.root().id();
         let current_scope = syms.get_root_scope_id();
         self.scope_node_recursive(syms, id, current_scope);
@@ -136,7 +138,7 @@ impl Ast {
     }
 
     /// Change all symbols to interned symbols
-    fn intern_symbols(&mut self, syms: &mut SymbolTree, source: &str) -> Result<(), FrontEndError> {
+    fn intern_symbols(&mut self, syms: &mut SymbolTree, source: &SourceFile) -> Result<(), FrontEndError> {
         use AstNodeKind::*;
 
         let mut current_scope = syms.get_root_scope_id();
@@ -155,7 +157,7 @@ impl Ast {
                     println!("Let");
                     let args = n.first_child().unwrap();
                     for sym in args.children() {
-                        let name = &source[sym.value().text_range.clone()];
+                        let name = &source.text[sym.value().text_range.clone()];
                         println!("{current_scope} {name}");
                     }
                 }
@@ -163,7 +165,7 @@ impl Ast {
                 Define => {
                     println!("Define");
                     let sym = n.first_child().unwrap();
-                    let name = &source[sym.value().text_range.clone()];
+                    let name = &source.text[sym.value().text_range.clone()];
                     println!("{current_scope} {name}");
                 }
 
@@ -171,7 +173,7 @@ impl Ast {
                     println!("Lambda");
                     let args = n.first_child().unwrap();
                     for sym in args.children() {
-                        let name = &source[sym.value().text_range.clone()];
+                        let name = &source.text[sym.value().text_range.clone()];
                         println!("{current_scope} {name}");
                     }
                 }
@@ -186,7 +188,7 @@ impl Ast {
     fn create_values(
         &mut self,
         _syms: &mut SymbolTree,
-        _source: &str,
+        _source: &SourceFile,
     ) -> Result<(), FrontEndError> {
         Ok(())
     }

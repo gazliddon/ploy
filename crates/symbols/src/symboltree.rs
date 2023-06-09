@@ -1,18 +1,51 @@
 use std::collections::HashMap;
 use thin_vec::ThinVec;
+
 use super::prelude::*;
 
 use super::{
     symboltable::SymbolTable, symboltreereader::SymbolTreeReader,
-    symboltreewriter::SymbolTreeWriter, 
+    symboltreewriter::SymbolTreeWriter,
 };
 
 ////////////////////////////////////////////////////////////////////////////////
+#[derive(Default)]
+struct TreeNode {
+    id: usize,
+    parent: Option<usize>,
+    children: Vec<usize>,
+}
+
+struct Tree<T> {
+    root_node: usize,
+    id_to_node: HashMap<usize, TreeNode>,
+    data: Vec<T>,
+    free_list: Vec<usize>,
+}
+
+impl<T> Default for Tree<T> {
+    fn default() -> Self {
+        Self {
+            root_node: 0,
+            id_to_node: Default::default(),
+            data: Default::default(),
+            free_list: Default::default(),
+        }
+    }
+}
+
+impl<T> Tree<T> {
+    pub fn new() -> Self {
+        Default::default()
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // SymbolTree
-type SymbolTreeTree<SCOPEID, SYMID> = ego_tree::Tree<SymbolTable<SCOPEID, SYMID>>;
-type SymbolNodeRef<'a, SCOPEID, SYMID> = ego_tree::NodeRef<'a, SymbolTable<SCOPEID, SYMID>>;
-type SymbolNodeId = ego_tree::NodeId;
-type SymbolNodeMut<'a, SCOPEID, SYMID> = ego_tree::NodeMut<'a, SymbolTable<SCOPEID, SYMID>>;
+type ESymbolTreeTree<SCOPEID, SYMID> = ego_tree::Tree<SymbolTable<SCOPEID, SYMID>>;
+type ESymbolNodeRef<'a, SCOPEID, SYMID> = ego_tree::NodeRef<'a, SymbolTable<SCOPEID, SYMID>>;
+type ESymbolNodeId = ego_tree::NodeId;
+type ESymbolNodeMut<'a, SCOPEID, SYMID> = ego_tree::NodeMut<'a, SymbolTable<SCOPEID, SYMID>>;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct SymbolTree<SCOPEID, SYMID, SYMVALUE>
@@ -21,22 +54,15 @@ where
     SYMID: SymIdTraits,
     SYMVALUE: Clone,
 {
-    pub (crate) tree: ego_tree::Tree<SymbolTable<SCOPEID, SYMID>>,
-    pub (crate) root_scope_id: SCOPEID,
-    pub (crate) next_scope_id: SCOPEID,
-    pub (crate) scope_id_to_node_id: HashMap<SCOPEID, SymbolNodeId>,
-    pub (crate) scope_id_to_symbol_info:
+    pub(crate) tree: ego_tree::Tree<SymbolTable<SCOPEID, SYMID>>,
+    pub(crate) root_scope_id: SCOPEID,
+    pub(crate) next_scope_id: SCOPEID,
+    pub(crate) scope_id_to_node_id: HashMap<SCOPEID, ESymbolNodeId>,
+    pub(crate) scope_id_to_symbol_info:
         HashMap<SymbolScopeId<SCOPEID, SYMID>, SymbolInfo<SCOPEID, SYMID, SYMVALUE>>,
 }
 
-struct SymbolNode<SCOPEID, SYMID>
-where
-    SCOPEID: ScopeIdTraits,
-    SYMID: SymIdTraits,
-{
-    parent: Option<SCOPEID>,
-    children: HashMap<String, SymbolTable<SCOPEID, SYMID>>,
-}
+////////////////////////////////////////////////////////////////////////////////
 
 impl<SCOPEID, SYMID, SYMVALUE> Default for SymbolTree<SCOPEID, SYMID, SYMVALUE>
 where
@@ -47,9 +73,9 @@ where
     fn default() -> Self {
         let root: SymbolTable<SCOPEID, SYMID> =
             SymbolTable::new("", "", 0.into(), SymbolResolutionBarrier::default());
-        let tree: SymbolTreeTree<SCOPEID, SYMID> = SymbolTreeTree::new(root);
+        let tree: ESymbolTreeTree<SCOPEID, SYMID> = ESymbolTreeTree::new(root);
         let current_scope = tree.root().id();
-        let mut scope_id_to_node_id: HashMap<SCOPEID, SymbolNodeId> = Default::default();
+        let mut scope_id_to_node_id: HashMap<SCOPEID, ESymbolNodeId> = Default::default();
         scope_id_to_node_id.insert(0.into(), current_scope);
 
         Self {
@@ -73,7 +99,7 @@ where
     pub fn get_node_id_from_scope_id(
         &self,
         scope_id: SCOPEID,
-    ) -> Result<SymbolNodeId, SymbolError<SCOPEID, SYMID>> {
+    ) -> Result<ESymbolNodeId, SymbolError<SCOPEID, SYMID>> {
         self.scope_id_to_node_id
             .get(&scope_id)
             .cloned()
@@ -83,7 +109,7 @@ where
     fn get_node_from_id(
         &self,
         scope_id: SCOPEID,
-    ) -> Result<SymbolNodeRef<SCOPEID, SYMID>, SymbolError<SCOPEID, SYMID>> {
+    ) -> Result<ESymbolNodeRef<SCOPEID, SYMID>, SymbolError<SCOPEID, SYMID>> {
         let node_id = self.get_node_id_from_scope_id(scope_id)?;
         self.tree.get(node_id).ok_or(SymbolError::InvalidScope)
     }
@@ -101,14 +127,12 @@ where
         node.children().map(|n| n.value())
     }
 
-
     pub(crate) fn get_scope(
         &self,
         scope_id: SCOPEID,
     ) -> Result<&SymbolTable<SCOPEID, SYMID>, SymbolError<SCOPEID, SYMID>> {
         self.get_node_from_id(scope_id).map(|n| n.value())
     }
-
 
     fn on_value_mut<F, R>(
         &mut self,

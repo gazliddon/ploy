@@ -36,7 +36,7 @@ pub trait ParseError<I>: Sized {
         Self::from_error_kind(input, kind, Severity::Error)
     }
 
-    fn set_severity(&mut self, sev: Severity);
+    fn set_severity(self, sev: Severity)-> Self;
     fn severity(&self) -> Severity;
     fn append(input: &I, kind: ParseErrorKind, other: Self) -> Self;
 

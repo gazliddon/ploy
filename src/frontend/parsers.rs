@@ -1,10 +1,11 @@
 use std::collections::HashMap;
 
+use serde::__private::de::IdentifierDeserializer;
 use thin_vec::{thin_vec, ThinVec};
 
 use unraveler::{
-    alt, cut, is_a, many0, many1, opt, pair, preceded, sep_pair, tag, tuple, wrapped, Collection,
-    Item, ParseError, ParseErrorKind, Severity,
+    alt, cut, is_a, many0, many1, opt, pair, preceded, sep_pair, tag, tuple, wrapped_cut,
+    Collection, Item, ParseError, ParseErrorKind, Severity,
 };
 
 use super::prelude::*;
@@ -28,7 +29,7 @@ fn parse_wrapped_collection(
     close: TokenKind,
     kind: AstNodeKind,
 ) -> PResult<ParseNode> {
-    let (rest, list) = wrapped(open, many0(parse_atom), close)(input)?;
+    let (rest, list) = wrapped_cut(open, many0(parse_atom), close)(input)?;
     let x = ParseNode::builder(kind, input, rest).children(list);
     Ok((rest, x.into()))
 }
@@ -51,8 +52,11 @@ fn parse_number(input: Span) -> PResult<ParseNode> {
 }
 
 fn parse_bool(input: Span) -> PResult<ParseNode> {
-    use TokenKind::*;
-    parse_kind(input, [True, False], AstNodeKind::Bool)
+    parse_kind(
+        input,
+        [TokenKind::True, TokenKind::False],
+        AstNodeKind::Bool,
+    )
 }
 
 fn parse_quoted(input: Span) -> PResult<ParseNode> {
@@ -63,7 +67,10 @@ fn parse_quoted(input: Span) -> PResult<ParseNode> {
 
 fn parse_null(input: Span) -> PResult<ParseNode> {
     let (rest, _) = tag([TokenKind::OpenBracket, TokenKind::CloseBracket])(input)?;
-    Ok((rest, ParseNode::builder(AstNodeKind::Null, input, rest).into()))
+    Ok((
+        rest,
+        ParseNode::builder(AstNodeKind::Null, input, rest).into(),
+    ))
 }
 
 fn parse_symbol(input: Span) -> PResult<ParseNode> {
@@ -81,8 +88,8 @@ fn parse_builtin(input: Span) -> PResult<ParseNode> {
     )
 }
 
-fn get_text<'a>(t: &'a Token<'a>) -> &'a str {
-    t.location.extra.txt
+fn match_text<'a>(t: &'a Token<'a>, txt: &str) -> bool {
+    t.location.extra.txt == txt
 }
 
 fn parse_string(input: Span) -> PResult<ParseNode> {
@@ -90,7 +97,7 @@ fn parse_string(input: Span) -> PResult<ParseNode> {
 }
 
 fn parse_aplication(input: Span) -> PResult<ParseNode> {
-    let (rest, list) = wrapped(
+    let (rest, list) = wrapped_cut(
         TokenKind::OpenBracket,
         many1(parse_atom),
         TokenKind::CloseBracket,
@@ -100,14 +107,14 @@ fn parse_aplication(input: Span) -> PResult<ParseNode> {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-fn parse_text<'a>(input: Span<'a>, txt: &'a str) -> PResult<'a, Span<'a>> {
+fn get_text<'a>(input: Span<'a>, txt: &'a str) -> PResult<'a, Span<'a>> {
     use TokenKind::*;
     let (rest, matched) = tag(Identifier)(input)?;
 
-    if get_text(&matched.span[0]) == txt {
+    if match_text(&matched.span[0], txt) {
         Ok((rest, matched))
     } else {
-        Err(PlError::from_error_kind(
+        Err(FrontEndError::from_error_kind(
             &input,
             ParseErrorKind::NoMatch,
             Severity::Error,
@@ -155,7 +162,7 @@ fn parse_define(input: Span) -> PResult<ParseNode> {
     use TokenKind::*;
 
     let (rest, (sym, meta, val, _)) = preceded(
-        tuple((tag(OpenBracket), |i| parse_text(i, "define"))),
+        tuple((tag(OpenBracket), txt_tag("define"))),
         cut(tuple((
             parse_symbol,
             opt(parse_meta),
@@ -174,50 +181,91 @@ fn parse_define(input: Span) -> PResult<ParseNode> {
 }
 
 fn parse_if(input: Span) -> PResult<ParseNode> {
-    use TokenKind::*;
+    use {AstNodeKind::If, TokenKind::*};
 
-    let (rest, (p, is_true, is_false, _)) = preceded(
-        tuple((tag(OpenBracket), |i| parse_text(i, "if"))),
-        cut(tuple((
-            parse_atom,
-            parse_atom,
-            opt(parse_atom),
-            tag(CloseBracket),
-        ))),
-    )(input)?;
+    let body = preceded(
+        txt_tag("if"),
+        cut(tuple((parse_atom, parse_atom, opt(parse_atom)))),
+    );
 
-    let args: ThinVec<_> = [Some(p), Some(is_true), is_false]
+    let (rest, (predicate, is_true, is_false)) =
+        wrapped_cut(OpenBracket, body, CloseBracket)(input)?;
+
+    let args: ThinVec<_> = [Some(predicate), Some(is_true), is_false]
         .into_iter()
         .flatten()
         .collect();
 
-    let node = ParseNode::builder(AstNodeKind::If, input, rest)
+    let node = ParseNode::builder(If, input, rest).children(args);
+
+    Ok((rest, node.build()))
+}
+
+fn parse_let_arg(input: Span) -> PResult<ParseNode> {
+    use {AstNodeKind::LetArg, TokenKind::*};
+    let (rest, (arg, val)) = pair(parse_arg, parse_atom)(input)?;
+    let node = ParseNode::builder(LetArg, input, rest)
+        .children([arg, val])
+        .build();
+    Ok((rest, node))
+}
+
+fn parse_let_args(input: Span) -> PResult<ParseNode> {
+    use TokenKind::*;
+    let (rest, args) =
+        wrapped_cut(OpenSquareBracket, many0(parse_let_arg), CloseSquareBracket)(input)?;
+    let node = ParseNode::builder(AstNodeKind::LetArgs, input, rest)
         .children(args)
         .build();
     Ok((rest, node))
 }
 
+fn parse_forms(input: Span) -> PResult<Vec<ParseNode>> {
+    many0(parse_atom)(input)
+}
+
 fn parse_let(input: Span) -> PResult<ParseNode> {
-    parse_let_lambda(input, "let", AstNodeKind::Let)
+    use {AstNodeKind::Let, TokenKind::*};
+
+    let (rest, (args, forms)) = wrapped_cut(
+        OpenBracket,
+        preceded(txt_tag("let"), cut(pair(parse_let_args, parse_forms))),
+        CloseBracket,
+    )(input)?;
+
+    let node = ParseNode::builder(Let, input, rest)
+        .child(args)
+        .children(forms)
+        .build();
+    Ok((rest, node))
+}
+
+fn parse_arg(input: Span) -> PResult<ParseNode> {
+    use {AstNodeKind::Arg, TokenKind::*};
+    parse_kind(input, [Identifier, FqnIdentifier], Arg)
+}
+
+fn parse_args(input: Span) -> PResult<ParseNode> {
+    use {AstNodeKind::Args, TokenKind::*};
+    let (rest, args) = wrapped_cut(OpenSquareBracket, many0(parse_arg), CloseSquareBracket)(input)?;
+    let node = ParseNode::builder(Args, input, rest).children(args).build();
+    Ok((rest, node))
+}
+
+fn txt_tag<'a>(txt: &'a str) -> impl Fn(Span<'a>) -> Result<(Span<'a>, Span<'a>), FrontEndError> {
+    |i| get_text(i, txt)
 }
 
 fn parse_lambda(input: Span) -> PResult<ParseNode> {
-    parse_let_lambda(input, "fn", AstNodeKind::Lambda)
-}
+    use {AstNodeKind::Lambda, TokenKind::*};
 
-fn parse_let_lambda<'a>(
-    input: Span<'a>,
-    txt: &'a str,
-    kind: AstNodeKind,
-) -> PResult<'a, ParseNode> {
-    use TokenKind::*;
-
-    let (rest, (args, forms, _)) = preceded(
-        tuple((tag(OpenBracket), |i| parse_text(i, txt))),
-        cut(tuple((parse_array, many0(parse_atom), tag(CloseBracket)))),
+    let (rest, (args, forms)) = wrapped_cut(
+        OpenBracket,
+        preceded(txt_tag("fn"), cut(pair(parse_args, parse_forms))),
+        CloseBracket,
     )(input)?;
 
-    let node = ParseNode::builder(kind, input, rest)
+    let node = ParseNode::builder(Lambda, input, rest)
         .child(args)
         .children(forms)
         .build();
@@ -226,9 +274,10 @@ fn parse_let_lambda<'a>(
 
 fn parse_simple<'a>(input: Span<'a>, txt: &'a str, kind: AstNodeKind) -> PResult<'a, ParseNode> {
     use TokenKind::*;
-    let (rest, (args, _)) = preceded(
-        tuple((tag(OpenBracket), |i| parse_text(i, txt))),
-        cut(tuple((many1(parse_atom), tag(CloseBracket)))),
+    let (rest, args) = wrapped_cut(
+        OpenBracket,
+        preceded(txt_tag(txt), parse_forms),
+        CloseBracket,
     )(input)?;
     let node = ParseNode::builder(kind, input, rest).children(args).build();
     Ok((rest, node))
@@ -266,16 +315,18 @@ fn parse_keyword(input: Span) -> PResult<ParseNode> {
 
 fn parse_map(input: Span) -> PResult<ParseNode> {
     use TokenKind::*;
-    let (rest, kids) = wrapped(OpenBrace, many0(parse_pair), CloseBrace)(input)?;
+    let (rest, kids) = wrapped_cut(OpenBrace, many0(parse_pair), CloseBrace)(input)?;
     let node = ParseNode::builder(AstNodeKind::Map, input, rest).children(kids);
     Ok((rest, node.into()))
 }
 
 fn parse_meta(input: Span) -> PResult<ParseNode> {
-    use { AstNodeKind::{KeyWord, Pair}, TokenKind::Caret };
+    use {
+        AstNodeKind::{KeyWord, Pair},
+        TokenKind::Caret,
+    };
 
-    let check_pair =
-        |x: &ParseNode| x.is_kind(Pair) && x.children[0].is_kind(KeyWord);
+    let check_pair = |x: &ParseNode| x.is_kind(Pair) && x.children[0].is_kind(KeyWord);
 
     let (rest, matched) = preceded(tag(Caret), parse_map)(input)?;
 
