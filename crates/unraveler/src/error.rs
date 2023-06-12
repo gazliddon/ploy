@@ -1,9 +1,7 @@
-use std::array::from_fn;
-
 use crate::span::Span;
 use thiserror::Error;
 
-#[derive(Error,Copy, Clone, Debug, PartialEq, )]
+#[derive(Error,Clone, Debug, PartialEq, )]
 pub enum ParseErrorKind {
     #[error("not enough to take")]
     TookTooMany,
@@ -13,8 +11,16 @@ pub enum ParseErrorKind {
     IllegalSplitIndex,
     #[error("No match")]
     NoMatch,
+    #[error("Match with not")]
+    MatchedWithNot,
     #[error("Needed one or more matches")]
     NeededOneOrMore,
+    #[error("Missing wrap terminator")]
+    MissingWrapTerminator,
+    #[error("Until never matched")]
+    UntilNotMatched,
+    #[error("Unconsumed input")]
+    UnconsumedInput,
 }
 
 pub type PResult<'a, I, O = Span<'a, I>> = Result<(Span<'a, I>, O), ParseErrorKind>;
@@ -25,20 +31,24 @@ pub enum Severity {
     Fatal,
 }
 
-pub trait ParseError<I>: Sized {
-    fn from_error_kind(input: &I, kind: ParseErrorKind, sev: Severity) -> Self;
+pub trait ParseError<I>: Sized + Clone 
+where 
+    I : Clone,
+{
+    fn from_error_kind(input: I, kind: ParseErrorKind, sev: Severity) -> Self;
 
-    fn from_fatal_error(input: &I, kind: ParseErrorKind)  -> Self {
+    fn from_fatal_error(input: I, kind: ParseErrorKind)  -> Self {
         Self::from_error_kind(input, kind, Severity::Fatal)
     }
 
-    fn from_error(input: &I, kind: ParseErrorKind)  -> Self {
+    fn from_error(input: I, kind: ParseErrorKind)  -> Self {
         Self::from_error_kind(input, kind, Severity::Error)
     }
 
+    fn change_kind(self, kind: ParseErrorKind) -> Self;
     fn set_severity(self, sev: Severity)-> Self;
     fn severity(&self) -> Severity;
-    fn append(input: &I, kind: ParseErrorKind, other: Self) -> Self;
+    fn append(input: I, kind: ParseErrorKind, other: Self) -> Self;
 
     fn is_fatal(&self) -> bool {
         self.severity() == Severity::Fatal

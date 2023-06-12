@@ -1,4 +1,12 @@
-    (fn [x y])
+(def a 10)
+(def b 20)
+
+(def x (fn [x y] 
+        (let [a b])
+        (+ x y a b)))
+
+
+
 
 
 

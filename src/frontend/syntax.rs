@@ -12,7 +12,7 @@ use thin_vec::ThinVec;
 use thiserror::Error;
 use unraveler::Item;
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, Clone)]
 pub enum SyntaxErrorKind {
     #[error("If needs 2 or more args")]
     NotEnoughIf,
@@ -22,6 +22,10 @@ pub enum SyntaxErrorKind {
     NotEngoughArgs,
     #[error("Too many arguments")]
     TooManyArgs,
+    #[error("Invalid argument")]
+    InvalidArgument,
+    #[error("Expected {0}")]
+    Expected(String)
 }
 
 fn get_str<'a>(x: Token<'a>, txt: &'a str) -> &'a str {

@@ -3,7 +3,7 @@
 mod ast;
 mod error;
 mod parsenode;
-mod parsers;
+pub mod parsers;
 mod ploytokens;
 mod span;
 mod syntax;
@@ -17,11 +17,11 @@ mod prelude {
         ploytokens::tokenize,
     };
 
-    pub(crate) use super::ast::AstTree;
-    pub(crate) use super::parsenode::ParseNode;
-    pub(crate) use super::ploytokens::Token;
-    pub(crate) use super::span::Span;
-    pub(crate) use super::tokens::{ParseText, TokenKind};
+    pub use super::ast::AstTree;
+    pub use super::parsenode::ParseNode;
+    pub use super::ploytokens::Token;
+    pub use super::span::Span;
+    pub use super::tokens::{ParseText, TokenKind};
 }
 
 pub use prelude::*;

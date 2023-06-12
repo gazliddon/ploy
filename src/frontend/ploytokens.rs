@@ -5,9 +5,9 @@ use super::tokens::ParseText;
 use logos::Logos;
 
 use super::prelude::*;
-use super::tokens::Location;
+use super::tokens::TextSpan;
 
-pub(crate) type Token<'a> = super::tokens::Token<ParseText<'a>>;
+pub type Token<'a> = super::tokens::Token<ParseText<'a>>;
 pub(crate) type SlimToken = super::tokens::Token<FileSpan>;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -67,8 +67,8 @@ fn to_tokens(source_file: &SourceFile) -> Vec<Token> {
         .into_iter()
         .map(|(kind, r)| Token {
             kind,
-            location: Location::new(r.start, r.len()),
-                extra: ParseText::new(&source_file.text[r]),
+            location: TextSpan::new(r.start, r.len()),
+                extra: ParseText::new(&source_file.text,r.clone()),
         })
         .collect()
 }
@@ -84,7 +84,7 @@ fn to_slim_tokens(source_file: &SourceFile) -> Vec<SlimToken> {
 
             SlimToken {
                 kind,
-                location: Location::new(r.start,r.len()),
+                location: TextSpan::new(r.start,r.len()),
                 extra: file_span,
             }
         })

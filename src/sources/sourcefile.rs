@@ -35,10 +35,17 @@ impl SourceFile {
     }
 
     pub fn get_file_span_from_offset(&self, offset: usize) -> Option<FileSpan> { 
-        let loc = self.lines.get_location_from_offset(offset)?;
-        Some(FileSpan::new(self.origin.clone(), loc.line, loc.col,0))
-    }}
+        self.get_file_span(offset, 0)
+    }
 
+    pub fn get_file_span(&self, offset: usize, len: usize) -> Option<FileSpan> {
+        self.get_file_span_from_range(offset..offset+len)
+    }
+    pub fn get_file_span_from_range(&self, range: std::ops::Range<usize>) -> Option<FileSpan> {
+        let loc = self.lines.get_location_from_offset(range.start)?;
+        Some(FileSpan::new(self.origin.clone(), loc.line, loc.col,range.len()))
+    }
+}
 
 
 use std::fs::File;

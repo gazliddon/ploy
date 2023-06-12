@@ -2,7 +2,7 @@ use crate::error::{PResult, ParseError, ParseErrorKind, Severity};
 
 use crate::traits::*;
 
-pub trait Item {
+pub trait Item  : Clone {
     type Kind: Clone + PartialEq;
 
     fn is_same_kind<I>(&self, other: &I) -> bool
@@ -24,8 +24,9 @@ pub struct Span<'a, I >
 where
     I: Item,
 {
-    pub position: usize, // index into parent doc
-    pub span: &'a [I],   // this span
+    position: usize, // index into parent doc
+    len : usize,
+    x_span: &'a [I],   // this span
 }
 
 impl<'a, I> Span<'a, I>
@@ -37,38 +38,38 @@ where
     }
 
     pub fn from_slice(text: &'a [I]) -> Self {
-        Self::new(0, text)
+        Self::new(text, 0, text.len())
     }
 
     pub fn as_slice(&self) -> &[I] {
-        self.span
+        &self.x_span[self.position..self.position+self.len]
     }
 
-    pub fn new(position: usize, span: &'a [I]) -> Self {
-        Self { position, span,  
+    pub fn new(x_span: &'a [I], position: usize, len: usize) -> Self {
+        Self { position, len, x_span,  
     }}
 
     pub fn len(&self) -> usize {
-        self.span.len()
+        self.len
     }
 
     pub fn is_empty(&self) -> bool {
-        self.span.is_empty()
+        self.as_slice().is_empty()
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &I> + '_ {
-        self.span.iter()
+        self.as_slice().iter()
     }
 
     pub fn kinds_iter(&self) -> impl Iterator<Item = I::Kind> + '_ {
-        self.span.iter().map(|i| i.get_kind())
+        self.iter().map(|i| i.get_kind())
     }
 
     pub fn take(&self, n: usize) -> Result<Self, ParseErrorKind> {
         if n > self.len() {
             Err(ParseErrorKind::TookTooMany.into())
         } else {
-            Ok(Self::new(self.position, &self.span[..n]))
+            Ok(Self::new(self.x_span, self.position , n))
         }
     }
 
@@ -76,7 +77,7 @@ where
         if n > self.len() {
             Err(ParseErrorKind::SkippedTooMany.into())
         } else {
-            Ok(Self::new(self.position + 1, &self.span[n..]))
+            Ok(Self::new(self.x_span, self.position + n, self.len - n))
         }
     }
 
@@ -84,7 +85,9 @@ where
         if n > self.len() {
             Err(ParseErrorKind::IllegalSplitIndex.into())
         } else {
-            Ok((self.drop(n)?, self.take(n)?))
+            let rest = self.drop(n)?;
+            let matched = self.take(n)?;
+            Ok((rest,matched))
         }
     }
 
@@ -105,7 +108,7 @@ where
     }
 
     fn match_kind(&self, k: I::Kind) -> bool {
-        self.span
+        self.as_slice()
             .get(0)
             .map(|i| i.is_kind(i.get_kind()))
             .unwrap_or(false)
@@ -118,8 +121,9 @@ where
     E: ParseError<Span<'a, I>>,
 {
     fn split_at(&self, pos: usize) -> Result<(Self, Self), E> {
+
         self.split(pos)
-            .map_err(|e| ParseError::from_error(self, e, ))
+            .map_err(|e| ParseError::from_error(self.clone(), e, ))
     }
 }
 
@@ -130,11 +134,11 @@ where
     type Item = I;
 
     fn at<'a>(&'a self, index: usize) -> Option<&'a Self::Item> {
-        self.span.get(index)
+        self.as_slice().get(index)
     }
 
     fn length(&self) -> usize {
-        self.span.len()
+        self.len()
     }
 }
 

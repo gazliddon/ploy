@@ -4,12 +4,12 @@ use symbols::SymbolTree;
 use thin_vec::{thin_vec, ThinVec};
 
 use unraveler::{
-    alt, is_a, many0, many1, pair, preceded, sep_pair, tag, tuple, wrapped_cut, Collection, Item,
+    alt, is_a, many0, pair, preceded, sep_pair, tag, tuple, wrapped_cut, Collection, Item,
     ParseError,
 };
 
-use crate::{symbols::ScopeId, sources::SourceFile};
-use super::prelude::*;
+use crate::{symbols::ScopeId, sources::{SourceFile, FileSpan}};
+use super::{prelude::*, ploytokens::SlimToken};
 
 #[derive(Clone, PartialEq, Debug, Default)]
 pub enum AstNodeKind {
@@ -25,6 +25,7 @@ pub enum AstNodeKind {
     QuotedString,
     Map,
     Pair,
+    KeyWordPair,
     Symbol,
     InternedSymbol,
     Scope,
@@ -67,6 +68,17 @@ pub struct AstNode {
     pub kind: AstNodeKind,
     pub token_range: std::ops::Range<usize>,
     pub text_range: std::ops::Range<usize>,
+    pub text_span : FileSpan,
+}
+
+pub fn get_text_range(tokes_range: &[SlimToken]) -> std::ops::Range<usize> {
+    let start_t = &tokes_range.first().unwrap().location.as_range();
+    let end_t = &tokes_range.last().unwrap().location.as_range();
+
+    let start = start_t.start;
+    let end = end_t.start + end_t.len();
+    let text_range = start..end;
+    text_range
 }
 
 impl AstNode {
@@ -77,18 +89,14 @@ impl AstNode {
         }
     }
 
-    fn from_parse_node(node: ParseNode, _tokes: &[Token]) -> Self {
-        let tokes_range = &_tokes[node.range.clone()];
-        let start_t = &tokes_range.first().unwrap().location.as_range();
-        let end_t = &tokes_range.last().unwrap().location.as_range();
-
-        let start = start_t.start;
-        let end = end_t.start + end_t.len();
-
+    fn from_parse_node(node: &ParseNode, tokes: &[SlimToken], source_file: &SourceFile) -> Self {
+        let text_range = get_text_range(&tokes[node.range.clone()]);
+        let text_span = source_file.get_file_span_from_range(text_range.clone()).expect("Invalid range");
         Self {
-            kind: node.kind,
-            token_range: node.range,
-            text_range: start..end,
+            kind: node.kind.clone(),
+            token_range: node.range.clone(),
+            text_range,
+            text_span,
         }
     }
 }
@@ -109,11 +117,12 @@ pub struct Ast {
     pub tree: AstTree,
     pub meta_data: HashMap<AstNodeId, MetaData>,
     pub source_file: crate::sources::SourceFile,
+    pub tokens: Vec<SlimToken>,
 }
 
 impl Ast {
-    fn add_node(&mut self, parent_id: Option<AstNodeId>, parse_node: ParseNode, tokes: &[Token]) {
-        let v = AstNode::from_parse_node(parse_node.clone(), tokes);
+    fn add_node(&mut self, parent_id: Option<AstNodeId>, parse_node: ParseNode) {
+        let v = AstNode::from_parse_node(&parse_node, &self.tokens, &self.source_file);
 
         let id = if let Some(parent_id) = parent_id {
             let mut r = self.tree.get_mut(parent_id).unwrap();
@@ -125,53 +134,51 @@ impl Ast {
             id
         };
 
-        let meta_data = Self::get_meta_data(id, &parse_node);
-        self.add_meta_data(id, meta_data);
+        if let Some(_) = parse_node.meta_data {
+            let _ = self.meta_data.insert(id, MetaData { node: id });
+        }
 
         for k in parse_node.children.into_iter() {
-            self.add_node(Some(id), k, tokes)
+            self.add_node(Some(id), k)
         }
     }
 
-    fn get_meta_data(id: AstNodeId, parse_node: &ParseNode) -> Option<MetaData> {
-        if let Some(meta_data) = &parse_node.meta_data {
-            assert!(meta_data.is_kind(AstNodeKind::MetaData));
-            for p in &meta_data.children {
-                let (ParseNode{kind: AstNodeKind::Pair,..}, [ParseNode{kind: AstNodeKind::KeyWord,..}, _v] ) = (&p,&p.children[0..2]) else {
-                    panic!()
-                };
-            }
-            Some(MetaData { node: id })
-        } else {
-            None
-        }
-    }
+    pub fn new(parse_node: ParseNode, tokes: &[Token], source_file: SourceFile) -> Self {
 
-    fn add_meta_data(&mut self, id: AstNodeId, meta_data: Option<MetaData>) {
-        if let Some(meta_data) = meta_data {
-            let _ = self.meta_data.insert(id, meta_data);
-        }
-    }
+        let tokens = tokes.iter().map(|t|SlimToken {
+            kind: t.kind.clone(),
+            location: t.location.clone(),
+            extra: source_file.get_file_span(t.location.start, t.location.len).expect("Invalid offset"),
 
-    fn new(parse_node: ParseNode, tokes: &[Token], source_file: SourceFile) -> Self {
+        }).collect();
+
         let mut ret = Self {
             tree: AstTree::new(Default::default()),
             meta_data: Default::default(),
-            source_file
+            source_file,
+            tokens,
+
         };
 
-        ret.add_node(None, parse_node, tokes);
+        ret.add_node(None, parse_node);
 
         ret
     }
 }
 
+struct UserError {
+    error: FrontEndError,
+    loc : FileSpan,
+}
+
+
 pub fn to_ast(tokes: &[Token], source_file: SourceFile) -> Result<Ast, FrontEndError> {
-    let tokens = Span::new(0, tokes);
+    let tokens = Span::from_slice(tokes);
+
     let (rest, matched) = super::parsers::parse_program(tokens)?;
 
     if !rest.is_empty() {
-        println!("{:?}", rest.span[0].location);
+        println!("{:?}", rest.as_slice()[0].location);
         panic!("Didn't consume all input");
     }
 

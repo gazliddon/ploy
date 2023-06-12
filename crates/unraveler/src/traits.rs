@@ -15,15 +15,15 @@ where
   }
 }
 
-pub trait Splitter<E>: Sized
+pub trait Splitter<E>: Sized + Clone
 where
     E: ParseError<Self>,
 {
     fn split_at(&self, pos: usize) -> Result<(Self, Self), E>;
 
-
     fn drop(&self, pos: usize) -> Result<Self, E> {
-        self.split_at(pos).map(|a| a.0)
+        let (rest,matched) = self.split_at(pos)?;
+        Ok(rest)
     }
 }
 
@@ -39,7 +39,7 @@ pub trait Tag<OTHER, E>: Sized {
 
 impl<SP, OTHER, E> Tag<OTHER, E> for SP
 where
-    SP: Collection + Splitter<E>,
+    SP: Collection + Splitter<E> + Clone,
     <SP as Collection>::Item: Item,
     <<SP as Collection>::Item as Item>::Kind:
         PartialEq<<<OTHER as Collection>::Item as Item>::Kind>,
@@ -51,7 +51,7 @@ where
 {
     fn tag(&self, other: OTHER) -> Result<(Self, Self), E> {
         if other.length() > self.length() {
-            return Err(E::from_error(self, ParseErrorKind::NoMatch, ));
+            return Err(E::from_error(self.clone(), ParseErrorKind::NoMatch, ));
         }
 
         let mut index = 0;
@@ -61,7 +61,7 @@ where
             let b = other.at(i).unwrap().get_kind();
 
             if a != b {
-                return Err(E::from_error(self, ParseErrorKind::NoMatch));
+                return Err(E::from_error(self.clone(), ParseErrorKind::NoMatch));
             } else {
                 index += 1
             }

@@ -1,30 +1,15 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
 
-mod cli;
-mod error;
-mod frontend;
-mod opts;
-mod symbols;
-mod value;
-mod ir;
-mod compile;
-mod sources;
-
+use ploy::*;
 use std::path::Path;
 use anyhow::Context;
 
 use frontend::FrontEndError;
 use thiserror::Error;
-use toml::to_string;
-use unraveler::Item;
 
 use frontend::Ast;
-
-use sources::PathSearcher;
 use opts::Opts;
-
-
 
 fn file_to_ast<P: AsRef<Path>>(_opts: Opts, p : P) -> Result<Ast,FrontEndError> {
     use frontend::*;
@@ -41,11 +26,12 @@ fn file_to_ast<P: AsRef<Path>>(_opts: Opts, p : P) -> Result<Ast,FrontEndError> 
 }
 
 fn main() -> anyhow::Result<()> {
-
     let opts = cli::parse_opts(opts::DEFAULT_PROJECT_FILE)?;
+
     let ast = file_to_ast(opts.clone(), &opts.project_file)?;
 
     println!("{:#?}", ast);
+
     Ok(())
 }
 

@@ -5,7 +5,7 @@ pub trait Tuple<I, O, E> {
     fn tuple(&mut self, input: I) -> Result<(I, O), E>;
 }
 
-pub fn tuple<I, O, E: ParseError<I>, TUPLE: Tuple<I, O, E>>(
+pub fn tuple<I: Clone, O, E: ParseError<I>, TUPLE: Tuple<I, O, E>>(
     mut l: TUPLE,
 ) -> impl FnMut(I) -> Result<(I, O), E> {
     move |i: I| l.tuple(i)
@@ -24,6 +24,7 @@ macro_rules! impl_tuple {
                 let ($(ref mut [<$T:lower 1>],)*) = self;
 
                 let rest = input.clone();
+
                 $(
                     let (rest,[<out_$T:lower 1>]) = [<$T:lower 1>].parse(rest.clone())?;
                 )*;

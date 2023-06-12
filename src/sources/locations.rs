@@ -2,8 +2,9 @@ use super::prelude::*;
 
 use std::path::PathBuf;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Default)]
 pub enum SourceOrigin {
+    #[default]
     Text,
     File(FileId, PathBuf),
 }
@@ -23,7 +24,7 @@ impl Location {
 }
 
 /// Describes a span in some text
-#[derive(Clone, Debug, Copy)]
+#[derive(Clone, Debug, Copy, Default)]
 pub struct SourceSpan {
     pub location: Location,
     pub len: usize,
@@ -39,7 +40,7 @@ impl SourceSpan {
 }
 
 /// Describes a span of text in file
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct FileSpan {
     pub origin: SourceOrigin,
     pub span: SourceSpan,

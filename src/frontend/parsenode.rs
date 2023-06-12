@@ -7,7 +7,7 @@ pub struct Building;
 pub struct Built;
 
 #[derive(Clone, PartialEq, Debug)]
-pub(crate) struct ParseNode {
+pub struct ParseNode {
     pub kind: AstNodeKind,
     pub range: std::ops::Range<usize>,
     pub children: ThinVec<ParseNode>,
@@ -23,13 +23,17 @@ impl ParseNode {
         self.kind = kind;
         self
     }
-    pub fn is_kind(&self, k : AstNodeKind) -> bool {
+    pub fn is_kind(&self, k: AstNodeKind) -> bool {
         self.kind == k
+    }
+
+    pub fn get_tokes_span<'a, T>(&self, tokes: &'a [T]) -> &'a [T] {
+        &tokes[self.range.clone()]
     }
 }
 
 #[derive(Clone, PartialEq, Debug)]
-pub(crate) struct NodeBuilder {
+pub struct NodeBuilder {
     pub kind: AstNodeKind,
     pub range: std::ops::Range<usize>,
     pub children: ThinVec<ParseNode>,
@@ -55,9 +59,9 @@ impl NodeBuilder {
     pub fn from_spans(kind: AstNodeKind, input: Span, rest: Span) -> Self {
         let input = input.get_range();
         let rest = rest.get_range();
-        let range =  input.start..rest.start;
+        let range = input.start..rest.start;
 
-        Self::new(kind,range.start, range.len())
+        Self::new(kind, range.start, range.len())
     }
 
     pub fn child(mut self, k: ParseNode) -> Self {
@@ -65,12 +69,12 @@ impl NodeBuilder {
         self
     }
 
-    pub fn meta(mut self, meta_data : ParseNode) -> Self {
-        self.meta_data = Some(meta_data );
+    pub fn meta(mut self, meta_data: ParseNode) -> Self {
+        self.meta_data = Some(meta_data);
         self
     }
 
-    pub fn meta_opt(mut self, meta_data : Option<ParseNode>) -> Self {
+    pub fn meta_opt(mut self, meta_data: Option<ParseNode>) -> Self {
         self.meta_data = meta_data;
         self
     }
@@ -80,7 +84,6 @@ impl NodeBuilder {
         self.children.extend(tvec);
         self
     }
-
 
     pub fn kind(mut self, kind: AstNodeKind) -> Self {
         self.kind = kind;

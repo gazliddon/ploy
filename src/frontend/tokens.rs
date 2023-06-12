@@ -114,7 +114,7 @@ pub enum TokenKind {
     KeyWord,
 }
 
-impl From<std::ops::Range<usize>> for Location {
+impl From<std::ops::Range<usize>> for TextSpan {
     fn from(value: std::ops::Range<usize>) -> Self {
         Self {
             start : value.start,
@@ -124,12 +124,12 @@ impl From<std::ops::Range<usize>> for Location {
 }
 
 #[derive(Clone, Debug, Copy, PartialEq,Default)]
-pub struct Location {
+pub struct TextSpan {
     pub start: usize,
     pub len: usize,
 }
 
-impl Location {
+impl TextSpan {
     pub fn as_range(&self) -> std::ops::Range<usize> {
         self.start..self.start+self.len
     }
@@ -140,20 +140,41 @@ impl Location {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ParseText<'a> {
-    pub txt: &'a str,
+    base: &'a str,
+    start: usize,
+    len: usize,
 }
 
 impl<'a> ParseText<'a> {
-    pub fn new(txt: &'a str) -> Self {
-        Self { txt }
+    pub fn new(base: &'a str, range: std::ops::Range<usize> ) -> Self {
+        Self { base, start: range.start, len: range.len() }
     }
+}
+impl <'a> ParseText<'a> {
+    pub fn get_text(&self) -> &str {
+        &self.base[self.as_range()]
+    }
+
+    pub fn as_range(&self) -> std::ops::Range<usize> {
+        self.start..self.start+self.len
+    }
+
 }
 
 #[derive(Clone, Debug, PartialEq, Copy)]
 pub struct Token<X: Clone> {
     pub kind: TokenKind,
-    pub location: Location,
+    pub location: TextSpan,
     pub extra: X,
 }
+
+impl<X: Clone> Token<X> {
+    pub fn text_span(a: &[Self]) -> std::ops::Range<usize>  {
+        let start = a.first().unwrap().location.start;
+        let end = a.last().unwrap().location.len + start;
+        start..end
+    }
+}
+
 
 
