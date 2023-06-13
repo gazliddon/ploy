@@ -8,13 +8,13 @@ pub type PResult<'a, O, E = FrontEndError> = Result<(Span<'a>, O), E>;
 
 #[derive(Debug, Error, Clone)]
 pub enum FrontEndErrorKind {
-    #[error(transparent)]
+    #[error("Unxpected syntax: {0}")]
     SyntaxError(#[from] SyntaxErrorKind),
-    #[error(transparent)]
+    #[error("Parsing: {0}")]
     ParseError(#[from] ParseErrorKind),
     #[error(transparent)]
     SearchsPathError(SearchPathsError),
-    #[error("{0}")]
+    #[error("Misc: {0}")]
     Other(String),
 }
 

@@ -32,6 +32,7 @@ where
         Ok((i, out))
     }
 }
+
 pub fn many_until<I, O, PREDO, E, P, PRED>(
     mut p: P,
     mut pred: PRED,

@@ -18,19 +18,17 @@ fn file_to_ast<P: AsRef<Path>>(_opts: Opts, p : P) -> Result<Ast,FrontEndError> 
     let source_id = loader.load_file(p).expect("A source file");
     let sf = loader.get_source_file(source_id).expect("My source file");
     let tokes = tokenize(sf);
-
     let mut ast = to_ast(&tokes, sf.clone())?;
     ast.process(&mut syms, sf)?;
-
     Ok(ast)
 }
 
 fn main() -> anyhow::Result<()> {
     let opts = cli::parse_opts(opts::DEFAULT_PROJECT_FILE)?;
 
-    let ast = file_to_ast(opts.clone(), &opts.project_file)?;
+    let _ast = file_to_ast(opts.clone(), &opts.project_file)?;
 
-    println!("{:#?}", ast);
+    println!("Compiled fine");
 
     Ok(())
 }

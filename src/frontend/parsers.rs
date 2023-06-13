@@ -86,7 +86,10 @@ fn parse_string(input: Span) -> PResult<ParseNode> {
 }
 
 fn parse_aplication(input: Span) -> PResult<ParseNode> {
-    let body = pair(alt((parse_symbol, parse_aplication, parse_builtin)), many0(parse_atom));
+    let body = pair(
+        alt((parse_symbol, parse_aplication, parse_builtin)),
+        many0(parse_atom),
+    );
 
     let (rest, (app, forms)) = parse_bracketed(body)(input)?;
 
@@ -148,10 +151,10 @@ fn parse_macro(input: Span) -> PResult<ParseNode> {
 }
 
 pub fn parse_define(input: Span) -> PResult<ParseNode> {
-    use { AstNodeKind::Define, TokenKind::* };
+    use {AstNodeKind::Define, TokenKind::*};
 
     let body = preceded(
-        alt(( txt_tag("define"),txt_tag("def") )),
+        alt((txt_tag("define"), txt_tag("def"))),
         tuple((parse_symbol, opt(parse_meta), parse_atom)),
     );
 
@@ -231,7 +234,7 @@ where
     use {SyntaxErrorKind::Expected, TokenKind::*};
     let open = OpenBrace;
     let close = CloseBrace;
-    let expected = "}";
+    let expected = "closing brace '}'";
 
     move |input: Span<'a>| {
         let (rest, _) = tag(open)(input)?;
@@ -243,6 +246,28 @@ where
     }
 }
 
+pub fn parse_wrapped_many<'a, P, O>(
+    open: TokenKind,
+    close : TokenKind,
+    expected: &str,
+    mut p: P,
+) -> impl FnMut(Span<'a>) -> Result<(Span<'a>, Vec<O>), FrontEndError>
+where
+    P: Parser<Span<'a>, O, FrontEndError>,
+{
+    use {SyntaxErrorKind::Expected, TokenKind::*};
+    let expected = format!("closing '{expected}'");
+
+    move |input: Span<'a>| {
+        let pp = |i| p.parse(i);
+        let (rest, _) = tag(open)(input)?;
+        let (rest, matched) = many_until(pp, tag(close))(rest)?;
+        let (rest, _) = cut(tag(close))(rest)
+            .map_err(|e: FrontEndError| e.set_kind(Expected(expected.to_owned())))?;
+        Ok((rest, matched))
+    }
+}
+
 pub fn parse_sq_bracketed<'a, P, O>(
     mut p: P,
 ) -> impl FnMut(Span<'a>) -> Result<(Span<'a>, O), FrontEndError>
@@ -250,12 +275,15 @@ where
     P: Parser<Span<'a>, O, FrontEndError>,
 {
     use {SyntaxErrorKind::Expected, TokenKind::*};
+    let open = OpenSquareBracket;
+    let close = CloseSquareBracket;
+    let expected = "closing square bracket ']'";
 
     move |input: Span<'a>| {
-        let (rest, _) = tag(OpenSquareBracket)(input)?;
+        let (rest, _) = tag(open)(input)?;
         let (rest, matched) = p.parse(rest)?;
-        let (rest, _) = cut(tag(CloseSquareBracket))(rest)
-            .map_err(|e: FrontEndError| e.set_kind(Expected("]".to_owned())))?;
+        let (rest, _) = cut(tag(close))(rest)
+            .map_err(|e: FrontEndError| e.set_kind(Expected(expected.to_owned())))?;
         Ok((rest, matched))
     }
 }
@@ -272,7 +300,7 @@ where
         let (rest, _) = tag(OpenBracket)(input)?;
         let (rest, matched) = p.parse(rest)?;
         let (rest, _) = cut(tag(CloseBracket))(rest)
-            .map_err(|e: FrontEndError| e.set_kind(Expected(")".to_owned())))?;
+            .map_err(|e: FrontEndError| e.set_kind(Expected("closing bracket ')'".to_owned())))?;
 
         Ok((rest, matched))
     }
@@ -294,17 +322,10 @@ pub fn parse_arg(input: Span) -> PResult<ParseNode> {
     })(input)
 }
 
-pub fn empty_args(input: Span) -> PResult<ParseNode> {
-    use {AstNodeKind::Args, TokenKind::*};
-    let (rest, _) = tag([OpenSquareBracket, CloseSquareBracket])(input)?;
-    let node = ParseNode::builder(Args, input, rest).build();
-    Ok((rest, node))
-}
-
 pub fn parse_args(input: Span) -> PResult<ParseNode> {
     use {AstNodeKind::Args, SyntaxErrorKind::*, TokenKind::*};
-    let body = many0(cut(wrap_err(InvalidArgument, parse_arg)));
-    let (rest, matched) = parse_sq_bracketed(body)(input)?;
+    let (rest, matched) =
+        parse_wrapped_many(OpenSquareBracket, CloseSquareBracket,"]", cut(parse_arg))(input)?;
     let node = ParseNode::builder(Args, input, rest).children(matched);
     Ok((rest, node.build()))
 }
@@ -312,9 +333,8 @@ pub fn parse_args(input: Span) -> PResult<ParseNode> {
 pub fn parse_lambda(input: Span) -> PResult<ParseNode> {
     use {AstNodeKind::Lambda, SyntaxErrorKind::Expected, TokenKind::*};
 
-    let body = preceded(txt_tag("fn"), pair(cut(parse_args), parse_forms));
-
-    let (rest, (args, forms)) = parse_bracketed(body)(input)?;
+    let (rest, (args, forms)) =
+        parse_bracketed(preceded(txt_tag("fn"), pair(cut(parse_args), parse_forms)))(input)?;
 
     let node = ParseNode::builder(Lambda, input, rest)
         .child(args)
@@ -325,8 +345,7 @@ pub fn parse_lambda(input: Span) -> PResult<ParseNode> {
 
 fn parse_list(input: Span) -> PResult<ParseNode> {
     use TokenKind::{CloseBracket, OpenBracket, Quote};
-    let (rest, _) = tag(Quote)(input)?;
-    let (rest, matched) = parse_bracketed(many0(parse_atom))(rest)?;
+    let (rest, matched) = preceded(tag(Quote), parse_bracketed(many0(parse_atom)))(input)?;
     let node = ParseNode::builder(AstNodeKind::List, input, rest).children(matched);
     Ok((rest, node.build()))
 }
@@ -366,7 +385,7 @@ pub fn parse_map(input: Span) -> PResult<ParseNode> {
 }
 
 pub fn parse_meta(input: Span) -> PResult<ParseNode> {
-    use {TokenKind::Caret, AstNodeKind::* };
+    use {AstNodeKind::*, TokenKind::Caret};
     let (rest, _) = tag(Caret)(input)?;
     let (rest, kids) = parse_braced(many0(parse_keyword_pair))(rest)?;
     let node = ParseNode::builder(MetaData, input, rest).children(kids);

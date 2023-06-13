@@ -61,7 +61,8 @@ where
             let b = other.at(i).unwrap().get_kind();
 
             if a != b {
-                return Err(E::from_error(self.clone(), ParseErrorKind::NoMatch));
+                let err_pos = self.drop(i).unwrap_or_else(|_|panic!());
+                return Err(E::from_error(err_pos, ParseErrorKind::NoMatch));
             } else {
                 index += 1
             }

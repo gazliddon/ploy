@@ -1,20 +1,30 @@
 use crate::cli::CliErrorKind;
 use crate::frontend::FrontEndError;
-use crate::sources::SourcesError;
+use crate::sources::{SourcesError, FileSpan};
 
+#[derive(thiserror::Error)]
 
-#[derive(thiserror::Error, Debug)]
 pub enum PloyErrorKind {
-
     #[error(transparent)]
     Cli(#[from] CliErrorKind),
 
-    #[error(transparent)]
-    FrontEnd(FrontEndError),
+    #[error("{0}")]
+    FrontEnd(#[from] FrontEndError),
 
     #[error(transparent)] 
-    SourceError(SourcesError),
+    SourceError(#[from] SourcesError),
 
     #[error(transparent)]
     Other(#[from] anyhow::Error),
 }
+
+impl std::fmt::Debug for PloyErrorKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Other(e) => write!(f,"{}", e.to_string()),
+            _ => write!(f,"{}",self)
+        }
+    }
+}
+
+

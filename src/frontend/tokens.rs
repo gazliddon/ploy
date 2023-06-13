@@ -53,10 +53,10 @@ pub enum TokenKind {
     #[token("&")]
     Ampersand,
 
-    #[regex("[a-zA-Z_]+[a-zA-Z_0-9]*")]
+    #[regex("[!a-zA-Z-_]+[!a-zA-Z_0-9-_]*")]
     Identifier,
 
-    #[regex(r"([a-zA-Z_]+[a-zA-Z_0-9]*)(::[a-zA-Z_]+[a-zA-Z_0-9]*)+")]
+    #[regex(r"([a-zA-Z-_]+[a-zA-Z0-9-_]*)(::[a-zA-Z-_]+[a-zA-Z0-9-_]*)+")]
     FqnIdentifier,
 
     #[token("=")]
