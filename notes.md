@@ -1,4 +1,20 @@
-# Next up
+# Front End
+* Refine errors bit
+* Test errors
+* Special forms
+    * macros
+    * cond
+    * do
+*  More analysis
+    * Intern symbols
+        * Think about how these work with an environment
+    * Typing 
+        * Mono morphisation?
+        * Type annotations?
 
-Change ParseText in Token hold text ranges rather than a transient &str
-Text ranges should have file_ids in as well, means I cam construct a mega AST with all files in
+# Compile to VM
+* Todo
+
+# Compile to native
+* todo
+

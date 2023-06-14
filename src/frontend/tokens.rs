@@ -140,9 +140,9 @@ impl TextSpan {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ParseText<'a> {
-    base: &'a str,
-    start: usize,
-    len: usize,
+    pub base: &'a str,
+    pub start: usize,
+    pub len: usize,
 }
 
 impl<'a> ParseText<'a> {

@@ -36,6 +36,11 @@ where
     pub fn get_range(&self) -> std::ops::Range<usize> {
         self.position..self.position + self.len()
     }
+    pub fn get_item_at_abs_position_sat(&self, pos : usize) -> Option<&I> {
+        assert!(!self.x_span.is_empty());
+        let pos = std::cmp::min(pos,self.x_span.len()-1);
+        self.x_span.get(pos)
+    }
 
     pub fn from_slice(text: &'a [I]) -> Self {
         Self::new(text, 0, text.len())

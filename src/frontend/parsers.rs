@@ -155,7 +155,7 @@ pub fn parse_define(input: Span) -> PResult<ParseNode> {
 
     let body = preceded(
         alt((txt_tag("define"), txt_tag("def"))),
-        tuple((parse_symbol, opt(parse_meta), parse_atom)),
+        tuple((parse_arg, opt(parse_meta), parse_atom)),
     );
 
     let (rest, (sym, meta, val)) = parse_bracketed(body)(input)?;

@@ -13,12 +13,12 @@ fn test_define() -> Result<(), PloyErrorKind> {
     use AstNodeKind::*;
 
     let test = vec![
-        ("(def a b)", vec![Symbol, Symbol]),
-        ("(define x (fn[a] 12))", vec![Symbol, Lambda]),
-        ("(define y ())", vec![Symbol, Null]),
+        ("(def a b)", vec![Arg, Symbol]),
+        ("(define x (fn[a] 12))", vec![Arg, Lambda]),
+        ("(define y ())", vec![Arg, Null]),
         (
             "(define  y ^{:test b :spam \"hello\"} ())",
-            vec![Symbol, Null],
+            vec![Arg, Null],
         ),
     ];
 
@@ -92,7 +92,7 @@ fn test_lambda() -> Result<(), PloyErrorKind> {
     use AstNodeKind::*;
 
     let test = vec![
-        ("(fn [x a a]  )", vec![Args]),
+        ("(fn [x a a]  ", vec![Args]),
         ("(fn [a b x] (print b) )", vec![Args, Application]),
         ( "(fn [a b x] (print b) (print c) '() :test)",
             vec![Args, Application, Application, List, KeyWord],

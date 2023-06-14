@@ -7,10 +7,13 @@ use crate::symbols::{ScopeId, SymbolTree};
 
 use anyhow::Context;
 use serde::Deserialize;
+use std::sync::atomic::AtomicIsize;
 use std::{collections::HashMap, io::Cursor};
 use thin_vec::ThinVec;
 use thiserror::Error;
 use unraveler::Item;
+
+use itertools::Itertools;
 
 #[derive(Debug, Error, Clone)]
 pub enum SyntaxErrorKind {
@@ -25,7 +28,7 @@ pub enum SyntaxErrorKind {
     #[error("Invalid argument")]
     InvalidArgument,
     #[error("Expected {0}")]
-    Expected(String)
+    Expected(String),
 }
 
 fn get_str<'a>(x: Token<'a>, txt: &'a str) -> &'a str {
@@ -71,18 +74,30 @@ fn min_args(args: &[AstNodeRef], min: usize) -> Result<(), SyntaxErrorKind> {
     }
 }
 
-fn get_rec_ids(tree: &AstTree, id: AstNodeId, nodes: &mut Vec<AstNodeId>) {
+/// Get all of the ids of this node Recursively, depth first
+fn get_rec_ids_inner(tree: &AstTree, id: AstNodeId, nodes: &mut Vec<AstNodeId>) {
     nodes.push(id);
     let kids = tree.get(id).unwrap().children().map(|n| n.id());
     for k in kids {
-        get_rec_ids(tree, k, nodes)
+        get_rec_ids_inner(tree, k, nodes)
     }
 }
 
+fn get_rec_ids(tree: &AstTree, id: AstNodeId) -> Vec<AstNodeId> {
+    let mut nodes = vec![];
+    get_rec_ids_inner(tree, id, &mut nodes);
+    nodes
+} 
+
 impl Ast {
-    pub fn process(&mut self, syms: &mut SymbolTree, source: &SourceFile) -> Result<(), FrontEndError> {
+    pub fn process(
+        &mut self,
+        syms: &mut SymbolTree,
+        source: &SourceFile,
+    ) -> Result<(), FrontEndError> {
         self.add_scopes(syms, source)?;
-        self.intern_symbols(syms, source)?;
+        self.intern_defines(syms, source)?;
+        self.intern_refs(syms,source)?;
         self.create_values(syms, source)?;
         Ok(())
     }
@@ -127,61 +142,59 @@ impl Ast {
         current_scope = self.set_scope_for_node(syms, id, current_scope);
         let n = self.tree.get(id).unwrap();
         let k_ids: ThinVec<_> = n.children().map(|n| n.id()).collect();
-
         for id in k_ids {
             self.scope_node_recursive(syms, id, current_scope)
         }
     }
 
+    fn change_node_kind(&mut self, id: AstNodeId, new_kind: AstNodeKind) {
+        let mut sym = self.tree.get_mut(id).unwrap();
+        sym.value().kind = new_kind
+    }
+
     /// Add scope setting, unsetting for all forms that need it
-    fn add_scopes(&mut self, syms: &mut SymbolTree, _source: &SourceFile) -> Result<(), FrontEndError> {
+    fn add_scopes(
+        &mut self,
+        syms: &mut SymbolTree,
+        _source: &SourceFile,
+    ) -> Result<(), FrontEndError> {
         let id = self.tree.root().id();
         let current_scope = syms.get_root_scope_id();
         self.scope_node_recursive(syms, id, current_scope);
         Ok(())
     }
 
-    /// Change all symbols to interned symbols
-    fn intern_symbols(&mut self, syms: &mut SymbolTree, source: &SourceFile) -> Result<(), FrontEndError> {
+    fn intern_refs(
+        &mut self,
+        _syms: &mut SymbolTree,
+        _source: &SourceFile,
+    ) -> Result<(),FrontEndError> {
+
+        Ok(())
+    }
+
+    /// Change all symbol defs to interned symbols
+    fn intern_defines(
+        &mut self,
+        syms: &mut SymbolTree,
+        source: &SourceFile,
+    ) -> Result<(), FrontEndError> {
         use AstNodeKind::*;
 
         let mut current_scope = syms.get_root_scope_id();
-
-        let mut nodes = vec![];
-        get_rec_ids(&self.tree, self.tree.root().id(), &mut nodes);
+        let nodes = get_rec_ids(&self.tree, self.tree.root().id());
 
         for id in nodes {
             let n = self.tree.get(id).unwrap();
             let v = n.value();
-
             match v.kind {
                 SetScope(id) => current_scope = id,
-
-                Let => {
-                    println!("Let");
-                    let args = n.first_child().unwrap();
-                    for sym in args.children() {
-                        let name = &source.text[sym.value().text_range.clone()];
-                        println!("{current_scope} {name}");
-                    }
-                }
-
-                Define => {
-                    println!("Define");
-                    let sym = n.first_child().unwrap();
+                Arg => {
+                    let sym = self.tree.get(id).unwrap();
                     let name = &source.text[sym.value().text_range.clone()];
-                    println!("{current_scope} {name}");
+                    let sym_id = syms.create_symbol_in_scope(current_scope, name).expect("Unable to create shit");
+                    self.change_node_kind(id, AstNodeKind::InternedSymbol(sym_id))
                 }
-
-                Lambda => {
-                    println!("Lambda");
-                    let args = n.first_child().unwrap();
-                    for sym in args.children() {
-                        let name = &source.text[sym.value().text_range.clone()];
-                        println!("{current_scope} {name}");
-                    }
-                }
-
                 _ => (),
             }
         }

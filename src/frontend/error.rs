@@ -1,6 +1,8 @@
 use super::prelude::*;
+use super::span::get_text_range;
 use super::syntax::SyntaxErrorKind;
-use crate::sources::{SearchPathsError, FileSpan};
+use crate::sources::{FileSpan, SearchPathsError};
+use itertools::Itertools;
 use thiserror::Error;
 use unraveler::{ParseError, ParseErrorKind, Severity};
 
@@ -18,10 +20,10 @@ pub enum FrontEndErrorKind {
     Other(String),
 }
 
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 enum ErrorPos {
     TokenRange(std::ops::Range<usize>),
-    FileSpan(FileSpan)
+    FileSpan(FileSpan),
 }
 
 #[derive(Debug, Clone)]
@@ -54,15 +56,7 @@ impl FrontEndError {
 
 impl<'a> ParseError<Span<'a>> for FrontEndError {
     fn from_error_kind(input: Span<'a>, kind: ParseErrorKind, severity: Severity) -> Self {
-        let pos =  if input.len() == 0 {
-            0..0
-        } else {
-            let start = input.as_slice().first().unwrap().extra.as_range();
-            let end = input.as_slice().last().unwrap().extra.as_range();
-            let start_t = start.start;
-            let end_t = end.end;
-            start_t .. end_t
-        };
+        let pos = get_text_range(input);
 
         Self {
             kind: kind.into(),

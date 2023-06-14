@@ -1,6 +1,5 @@
 use std::{collections::HashMap, default};
 use logos::Source;
-use symbols::SymbolTree;
 use thin_vec::{thin_vec, ThinVec};
 
 use unraveler::{
@@ -8,7 +7,7 @@ use unraveler::{
     ParseError,
 };
 
-use crate::{symbols::ScopeId, sources::{SourceFile, FileSpan}};
+use crate::{symbols::{ ScopeId,SymbolScopeId }, sources::{SourceFile, FileSpan}};
 use super::{prelude::*, ploytokens::SlimToken};
 
 #[derive(Clone, PartialEq, Debug, Default)]
@@ -27,7 +26,7 @@ pub enum AstNodeKind {
     Pair,
     KeyWordPair,
     Symbol,
-    InternedSymbol,
+    InternedSymbol(SymbolScopeId),
     Scope,
     KeyWord,
     Define,
