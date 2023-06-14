@@ -2,6 +2,7 @@
 /// and other processing
 use super::prelude::*;
 
+use crate::error::to_full_error;
 use crate::sources::SourceFile;
 use crate::symbols::{ScopeId, SymbolTree};
 
@@ -32,7 +33,7 @@ pub enum SyntaxErrorKind {
     Expected(String),
 
     #[error("Undefined symbol {0}")]
-    UndefinedSymbol(String)
+    UndefinedSymbol(String),
 }
 
 fn get_str<'a>(x: Token<'a>, txt: &'a str) -> &'a str {
@@ -91,29 +92,38 @@ fn get_rec_ids(tree: &AstTree, id: AstNodeId) -> Vec<AstNodeId> {
     let mut nodes = vec![];
     get_rec_ids_inner(tree, id, &mut nodes);
     nodes
-} 
+}
 
-fn get_rec_ids_with_scope_inner(tree: &AstTree, id: AstNodeId, mut current_scope: ScopeId, nodes: &mut Vec<( ScopeId,AstNodeId )>) -> ScopeId {
+fn get_rec_ids_with_scope_inner(
+    tree: &AstTree,
+    id: AstNodeId,
+    mut current_scope: ScopeId,
+    nodes: &mut Vec<(ScopeId, AstNodeId)>,
+) -> ScopeId {
     let node = tree.get(id).unwrap();
 
     if let AstNodeKind::SetScope(x) = node.value().kind {
         current_scope = x;
     } else {
-        nodes.push((current_scope,id));
+        nodes.push((current_scope, id));
 
         let kids = tree.get(id).unwrap().children().map(|n| n.id());
 
         for k in kids {
-            current_scope = get_rec_ids_with_scope_inner(tree, k, current_scope,nodes);
+            current_scope = get_rec_ids_with_scope_inner(tree, k, current_scope, nodes);
         }
     }
 
     current_scope
 }
 
-fn get_rec_ids_with_scope(tree: &AstTree, id: AstNodeId, current_scope: ScopeId) -> Vec<(ScopeId, AstNodeId)> {
+fn get_rec_ids_with_scope(
+    tree: &AstTree,
+    id: AstNodeId,
+    current_scope: ScopeId,
+) -> Vec<(ScopeId, AstNodeId)> {
     let id = tree.get(id).unwrap().id();
-    let mut nodes : Vec<_> = vec![];
+    let mut nodes: Vec<_> = vec![];
     get_rec_ids_with_scope_inner(tree, id, current_scope, &mut nodes);
     nodes
 }
@@ -126,7 +136,7 @@ impl Ast {
     ) -> Result<(), FrontEndError> {
         self.add_scopes(syms, source)?;
         self.intern_defines(syms, source)?;
-        self.intern_refs(syms,source)?;
+        self.intern_refs(syms, source)?;
         self.create_values(syms, source)?;
         Ok(())
     }
@@ -169,6 +179,7 @@ impl Ast {
         mut current_scope: ScopeId,
     ) {
         current_scope = self.set_scope_for_node(syms, id, current_scope);
+
         let n = self.tree.get(id).unwrap();
         let k_ids: ThinVec<_> = n.children().map(|n| n.id()).collect();
         for id in k_ids {
@@ -197,31 +208,26 @@ impl Ast {
         &mut self,
         syms: &mut SymbolTree,
         source: &SourceFile,
-    ) -> Result<(),FrontEndError> {
+    ) -> Result<(), FrontEndError> {
         use symbols::SymbolResolutionBarrier;
+        use SyntaxErrorKind::*;
         let id = self.tree.root().id();
-        let current_scope = syms.get_root_scope_id();
-
-        let nodes = get_rec_ids_with_scope(&self.tree, id, current_scope);
+        let root_scope = syms.get_root_scope_id();
+        let nodes = get_rec_ids_with_scope(&self.tree, id, root_scope);
 
         for (scope, id) in nodes.into_iter() {
             let node = self.tree.get(id).unwrap();
             let v = &node.value();
 
             if v.kind == AstNodeKind::Symbol {
-                let  name = source.get_text(v.text_range.clone()).unwrap();
-                let x = syms.get_scope_info_from_id(scope).unwrap();
-                println!("found ref! {name} {scope:?} {id:?} {x:?}");
+                let name = source.get_text(v.text_range.clone()).unwrap();
+                let sym_id = syms
+                    .resolve_label(name, scope, SymbolResolutionBarrier::Global)
+                    .map_err(|_e| {
+                        FrontEndError::new(UndefinedSymbol(name.to_owned()), v.text_range.clone())
+                    })?;
 
-                let y = syms.resolve_label(name, current_scope, SymbolResolutionBarrier::Module);
-
-                if let Ok(y)= y {
-                    println!("Resolved! {y:?}")
-                } else {
-                    return Err(
-                        FrontEndError::new(SyntaxErrorKind::UndefinedSymbol(name.to_string()), v.text_range.clone())
-                    );
-                }
+                self.change_node_kind(id, AstNodeKind::InternedSymbol(sym_id))
             }
         }
 
@@ -247,7 +253,9 @@ impl Ast {
                 Arg => {
                     let sym = self.tree.get(id).unwrap();
                     let name = &source.text[sym.value().text_range.clone()];
-                    let sym_id = syms.create_symbol_in_scope(current_scope, name).expect("Unable to create shit");
+                    let sym_id = syms
+                        .create_symbol_in_scope(current_scope, name)
+                        .expect("Symbol exists TODO: error properly");
                     self.change_node_kind(id, AstNodeKind::InternedSymbol(sym_id))
                 }
                 _ => (),

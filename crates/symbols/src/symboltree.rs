@@ -40,12 +40,11 @@ impl<T> Tree<T> {
     }
 }
 
-#[derive(Debug,PartialEq,Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct ScopeInfo {
     pub name: String,
-    pub fqn: String
+    pub fqn: String,
 }
-
 
 ////////////////////////////////////////////////////////////////////////////////
 // SymbolTree
@@ -103,10 +102,7 @@ where
     SYMID: SymIdTraits,
     V: Clone,
 {
-    fn get_node_id_from_scope_id(
-        &self,
-        scope_id: SCOPEID,
-    ) -> Result<ESymbolNodeId, SymbolError<SCOPEID, SYMID>> {
+    fn get_node_id_from_scope_id(&self, scope_id: SCOPEID) -> Result<ESymbolNodeId, SymbolError> {
         self.scope_id_to_node_id
             .get(&scope_id)
             .cloned()
@@ -116,14 +112,16 @@ where
     fn get_node_from_id(
         &self,
         scope_id: SCOPEID,
-    ) -> Result<ESymbolNodeRef<SCOPEID, SYMID>, SymbolError<SCOPEID, SYMID>> {
+    ) -> Result<ESymbolNodeRef<SCOPEID, SYMID>, SymbolError> {
         let node_id = self.get_node_id_from_scope_id(scope_id)?;
         self.tree.get(node_id).ok_or(SymbolError::InvalidScope)
     }
 
     pub fn get_parent_scope_id(&self, scope_id: SCOPEID) -> Option<SCOPEID> {
-        let node = self.get_node_from_id(scope_id).expect("Illegal scope id");
-        node.parent().map(|n| n.value().get_scope_id())
+        self.get_node_from_id(scope_id)
+            .expect("Illegal scope id")
+            .parent()
+            .map(|n| n.value().get_scope_id())
     }
 
     fn children(
@@ -137,17 +135,13 @@ where
     pub(crate) fn get_scope(
         &self,
         scope_id: SCOPEID,
-    ) -> Result<&SymbolTable<SCOPEID, SYMID>, SymbolError<SCOPEID, SYMID>> {
+    ) -> Result<&SymbolTable<SCOPEID, SYMID>, SymbolError> {
         self.get_node_from_id(scope_id).map(|n| n.value())
     }
 
-    fn on_value_mut<F, R>(
-        &mut self,
-        scope_id: SCOPEID,
-        mut f: F,
-    ) -> Result<R, SymbolError<SCOPEID, SYMID>>
+    fn on_value_mut<F, R>(&mut self, scope_id: SCOPEID, mut f: F) -> Result<R, SymbolError>
     where
-        F: FnMut(&mut SymbolTable<SCOPEID, SYMID>) -> Result<R, SymbolError<SCOPEID, SYMID>>,
+        F: FnMut(&mut SymbolTable<SCOPEID, SYMID>) -> Result<R, SymbolError>,
     {
         let node_id = self.get_node_id_from_scope_id(scope_id)?;
 
@@ -186,7 +180,7 @@ where
         &mut self,
         symbol_id: SymbolScopeId<SCOPEID, SYMID>,
         val: V,
-    ) -> Result<(), SymbolError<SCOPEID, SYMID>> {
+    ) -> Result<(), SymbolError> {
         self.on_symbol_mut(symbol_id, |si| {
             si.value = Some(val.clone());
             Ok(())
@@ -197,16 +191,16 @@ where
         &mut self,
         name: &str,
         scope_id: SCOPEID,
-    ) -> Result<(), SymbolError<SCOPEID, SYMID>> {
+    ) -> Result<(), SymbolError> {
         self.on_value_mut(scope_id, |syms| syms.remove_symbol(name))
     }
     fn on_symbol_mut<F, R>(
         &mut self,
         id: SymbolScopeId<SCOPEID, SYMID>,
         mut f: F,
-    ) -> Result<R, SymbolError<SCOPEID, SYMID>>
+    ) -> Result<R, SymbolError>
     where
-        F: FnMut(&mut SymbolInfo<SCOPEID, SYMID, V>) -> Result<R, SymbolError<SCOPEID, SYMID>>,
+        F: FnMut(&mut SymbolInfo<SCOPEID, SYMID, V>) -> Result<R, SymbolError>,
     {
         let x = self
             .scope_id_to_symbol_info
@@ -218,7 +212,7 @@ where
         &mut self,
         id: SymbolScopeId<SCOPEID, SYMID>,
         val: V,
-    ) -> Result<(), SymbolError<SCOPEID, SYMID>> {
+    ) -> Result<(), SymbolError> {
         self.on_symbol_mut(id, move |sym| {
             sym.value = Some(val.clone());
             Ok(())
@@ -229,14 +223,14 @@ where
         name: &str,
         scope_id: SCOPEID,
         symbol_id: SymbolScopeId<SCOPEID, SYMID>,
-    ) -> Result<(), SymbolError<SCOPEID, SYMID>> {
+    ) -> Result<(), SymbolError> {
         self.on_value_mut(scope_id, |syms| syms.add_reference_symbol(name, symbol_id))
     }
     pub fn create_symbol_in_scope(
         &mut self,
         scope_id: SCOPEID,
         name: &str,
-    ) -> Result<SymbolScopeId<SCOPEID, SYMID>, SymbolError<SCOPEID, SYMID>> {
+    ) -> Result<SymbolScopeId<SCOPEID, SYMID>, SymbolError> {
         let (si, symbol_id) = self.on_value_mut(scope_id, |syms| {
             let symbol_id = syms.create_symbol(name)?;
             let si = SymbolInfo::new(name, None, symbol_id, syms.get_scope_fqn_name());
@@ -247,12 +241,17 @@ where
         Ok(symbol_id)
     }
 
+    pub fn dump_syms(&self, scope_id: SCOPEID) {
+        let x = self.get_node_from_id(scope_id).unwrap();
+        println!("{:#?}", x.value().name_to_id.keys());
+    }
+
     pub fn resolve_label(
         &self,
         name: &str,
         scope_id: SCOPEID,
         barrier: SymbolResolutionBarrier,
-    ) -> Result<SymbolScopeId<SCOPEID, SYMID>, SymbolError<SCOPEID, SYMID>> {
+    ) -> Result<SymbolScopeId<SCOPEID, SYMID>, SymbolError> {
         let mut node_scope_id = Some(scope_id);
 
         while let Some(n) = node_scope_id {
@@ -263,8 +262,9 @@ where
             }
 
             if !v.get_symbol_resoultion_barrier().can_pass_barrier(barrier) {
-                break;
+                return Err(SymbolError::HitScopeBarrier);
             }
+
             node_scope_id = self.get_parent_scope_id(n);
         }
 
@@ -273,7 +273,7 @@ where
     pub fn get_symbol_info_from_scoped_name(
         &self,
         name: &ScopedName,
-    ) -> Result<&SymbolInfo<SCOPEID, SYMID, V>, SymbolError<SCOPEID, SYMID>> {
+    ) -> Result<&SymbolInfo<SCOPEID, SYMID, V>, SymbolError> {
         assert!(name.is_abs());
 
         let scopes = name.path();
@@ -310,6 +310,7 @@ where
                 return id;
             }
         }
+
         self.insert_new_table(name, id, SymbolResolutionBarrier::default())
     }
 }
@@ -322,18 +323,14 @@ where
     SYMID: SymIdTraits,
     V: Clone,
 {
-    pub fn get_sub_scope_id(
-        &self,
-        name: &str,
-        scope_id: SCOPEID,
-    ) -> Result<SCOPEID, SymbolError<SCOPEID, SYMID>> {
+    pub fn get_sub_scope_id(&self, name: &str, scope_id: SCOPEID) -> Result<SCOPEID, SymbolError> {
         let name = ScopedName::new(name);
         assert!(name.is_relative());
         let path = name.path();
         self.find_sub_scope_id(path, scope_id)
     }
 
-    pub fn get_scope_id(&self, name: &str) -> Result<SCOPEID, SymbolError<SCOPEID, SYMID>> {
+    pub fn get_scope_id(&self, name: &str) -> Result<SCOPEID, SymbolError> {
         let name = ScopedName::new(name);
         assert!(name.is_abs());
         let scope_id = self.get_root_scope_id();
@@ -348,7 +345,7 @@ where
         &self,
         path: &[&str],
         scope_id: SCOPEID,
-    ) -> Result<SCOPEID, SymbolError<SCOPEID, SYMID>> {
+    ) -> Result<SCOPEID, SymbolError> {
         let mut current_node = scope_id;
 
         for path_part in path {
@@ -373,12 +370,11 @@ where
         &mut self,
         scope_id: SCOPEID,
         names: &[String],
-    ) -> Result<ThinVec<SymbolScopeId<SCOPEID, SYMID>>, SymbolError<SCOPEID, SYMID>> {
-        let ret: Result<ThinVec<SymbolScopeId<SCOPEID, SYMID>>, SymbolError<SCOPEID, SYMID>> =
-            names
-                .iter()
-                .map(|name| self.create_symbol_in_scope(scope_id, name))
-                .collect();
+    ) -> Result<ThinVec<SymbolScopeId<SCOPEID, SYMID>>, SymbolError> {
+        let ret: Result<ThinVec<SymbolScopeId<SCOPEID, SYMID>>, SymbolError> = names
+            .iter()
+            .map(|name| self.create_symbol_in_scope(scope_id, name))
+            .collect();
         ret
     }
 
@@ -410,7 +406,7 @@ where
     pub fn get_symbol_info_from_id(
         &self,
         symbol_id: SymbolScopeId<SCOPEID, SYMID>,
-    ) -> Result<&SymbolInfo<SCOPEID, SYMID, V>, SymbolError<SCOPEID, SYMID>> {
+    ) -> Result<&SymbolInfo<SCOPEID, SYMID, V>, SymbolError> {
         self.scope_id_to_symbol_info
             .get(&symbol_id)
             .ok_or(SymbolError::InvalidId)
@@ -419,7 +415,7 @@ where
     pub fn get_symbol_info_from_name(
         &self,
         name: &str,
-    ) -> Result<&SymbolInfo<SCOPEID, SYMID, V>, SymbolError<SCOPEID, SYMID>> {
+    ) -> Result<&SymbolInfo<SCOPEID, SYMID, V>, SymbolError> {
         let name = ScopedName::new(name);
         self.get_symbol_info_from_scoped_name(&name)
     }
@@ -428,7 +424,7 @@ where
         &self,
         name: &str,
         scope_id: SCOPEID,
-    ) -> Result<&SymbolInfo<SCOPEID, SYMID, V>, SymbolError<SCOPEID, SYMID>> {
+    ) -> Result<&SymbolInfo<SCOPEID, SYMID, V>, SymbolError> {
         let n = self.get_scope(scope_id)?;
         let id = n.get_symbol_id(name)?;
         self.scope_id_to_symbol_info
@@ -436,13 +432,12 @@ where
             .ok_or(SymbolError::NotFound)
     }
 
-    pub fn get_scope_info_from_id(&self, scope_id : SCOPEID) -> Option<ScopeInfo> {
-
+    pub fn get_scope_info_from_id(&self, scope_id: SCOPEID) -> Option<ScopeInfo> {
         let x = self.get_node_from_id(scope_id).ok()?.value();
 
         let ret = ScopeInfo {
-            fqn: x.get_scope_name().to_owned(),
-            name: x.get_scope_fqn_name().to_owned(),
+            name: x.get_scope_name().to_owned(),
+            fqn: x.get_scope_fqn_name().to_owned(),
         };
 
         Some(ret)

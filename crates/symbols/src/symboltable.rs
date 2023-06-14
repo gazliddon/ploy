@@ -1,5 +1,8 @@
-use std::{collections::HashMap, fmt::{ Display, Debug }};
 use super::prelude::*;
+use std::{
+    collections::HashMap,
+    fmt::{Debug, Display},
+};
 
 ////////////////////////////////////////////////////////////////////////////////
 use serde::{Deserialize, Serialize};
@@ -20,14 +23,14 @@ impl SymbolResolutionBarrier {
 
 /// Holds information about symbols
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, Default)]
-pub (crate) struct SymbolTable<SCOPEID, SYMID>
+pub(crate) struct SymbolTable<SCOPEID, SYMID>
 where
     SCOPEID: ScopeIdTraits,
     SYMID: SymIdTraits,
 {
     scope: String,
     fqn_scope: String,
-    name_to_id: HashMap<String, SYMID>,
+    pub(crate) name_to_id: HashMap<String, SYMID>,
     ref_name_to_symbol_id: HashMap<String, SymbolScopeId<SCOPEID, SYMID>>,
     highest_id: SYMID,
     scope_id: SCOPEID,
@@ -43,7 +46,7 @@ where
         writeln!(f, "Scope: {}", self.scope)?;
 
         for (name, id) in &self.name_to_id {
-                 writeln!(f, "{name} = {id:#?}",)?;
+            writeln!(f, "{name} = {id:#?}",)?;
         }
         Ok(())
     }
@@ -54,17 +57,17 @@ where
     SCOPEID: ScopeIdTraits,
     SYMID: SymIdTraits,
 {
-    pub (crate) fn get_reference_syms(&self) -> &HashMap<String, SymbolScopeId<SCOPEID,SYMID>> {
+    pub(crate) fn get_reference_syms(&self) -> &HashMap<String, SymbolScopeId<SCOPEID, SYMID>> {
         &self.ref_name_to_symbol_id
     }
-    pub (crate) fn get_syms(&self) -> &HashMap<String, SYMID> {
+    pub(crate) fn get_syms(&self) -> &HashMap<String, SYMID> {
         &self.name_to_id
     }
 
     pub(crate) fn get_symbol_id(
         &self,
         name: &str,
-    ) -> Result<SymbolScopeId<SCOPEID, SYMID>, SymbolError<SCOPEID,SYMID>> {
+    ) -> Result<SymbolScopeId<SCOPEID, SYMID>, SymbolError> {
         // Is this a ref id?
         if let Some(id) = self.ref_name_to_symbol_id.get(name) {
             Ok(*id)
@@ -74,7 +77,9 @@ where
                 .get(name)
                 .ok_or(SymbolError::NotFound)
                 .cloned()?;
+
             let scope_id = self.scope_id;
+
             Ok(SymbolScopeId {
                 scope_id,
                 symbol_id,
@@ -85,9 +90,9 @@ where
     pub(crate) fn create_symbol(
         &mut self,
         name: &str,
-    ) -> Result<SymbolScopeId<SCOPEID, SYMID>, SymbolError<SCOPEID, SYMID>> {
-        if let Ok(id) = self.get_symbol_id(name) {
-            Err(SymbolError::AlreadyDefined(id))
+    ) -> Result<SymbolScopeId<SCOPEID, SYMID>, SymbolError> {
+        if let Ok(_) = self.get_symbol_id(name) {
+            Err(SymbolError::AlreadyDefined)
         } else {
             let symbol_id = self.get_next_id();
 
@@ -100,7 +105,7 @@ where
         }
     }
 
-    pub(crate) fn remove_symbol(&mut self, name: &str) -> Result<(), SymbolError<SCOPEID,SYMID>> {
+    pub(crate) fn remove_symbol(&mut self, name: &str) -> Result<(), SymbolError> {
         self.name_to_id
             .remove(name)
             .ok_or(SymbolError::NotFound)
@@ -141,10 +146,10 @@ where
     pub(crate) fn add_reference_symbol(
         &mut self,
         name: &str,
-        symbol_id: SymbolScopeId<SCOPEID,SYMID>,
-    ) -> Result<(), SymbolError<SCOPEID, SYMID>> {
-        if let Some(id) = self.ref_name_to_symbol_id.get(name) {
-            Err(SymbolError::AlreadyDefined(*id))
+        symbol_id: SymbolScopeId<SCOPEID, SYMID>,
+    ) -> Result<(), SymbolError> {
+        if let Some(_) = self.ref_name_to_symbol_id.get(name) {
+            Err(SymbolError::AlreadyDefined)
         } else {
             self.ref_name_to_symbol_id
                 .insert(name.to_string(), symbol_id);

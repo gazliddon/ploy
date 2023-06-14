@@ -48,7 +48,7 @@ where
         self.sym_tree.get_fqn_from_id(self.current_scope_id)
     }
 
-    pub fn set_scope_from_id(&mut self, id: SCOPEID) -> Result<(), SymbolError<SCOPEID, SYMID>> {
+    pub fn set_scope_from_id(&mut self, id: SCOPEID) -> Result<(), SymbolError> {
         self.current_scope_id = id;
         Ok(())
     }
@@ -68,7 +68,7 @@ where
         &mut self,
         name: &str,
         id: SymbolScopeId<SCOPEID,SYMID>,
-    ) -> Result<(), SymbolError<SCOPEID, SYMID>> {
+    ) -> Result<(), SymbolError> {
         self.sym_tree
             .add_reference_symbol(name, self.current_scope_id, id)
     }
@@ -77,18 +77,18 @@ where
         &mut self,
         name: &str,
         val: V,
-    ) -> Result<SymbolScopeId<SCOPEID,SYMID>, SymbolError<SCOPEID,SYMID>> {
+    ) -> Result<SymbolScopeId<SCOPEID,SYMID>, SymbolError> {
         let symbol_id = self.create_symbol(name)?;
         self.sym_tree.set_symbol_for_id(symbol_id, val)?;
         Ok(symbol_id)
     }
 
-    pub fn remove_symbol(&mut self, name: &str) -> Result<(), SymbolError<SCOPEID,SYMID>> {
+    pub fn remove_symbol(&mut self, name: &str) -> Result<(), SymbolError> {
         self.sym_tree
             .remove_symbol_for_id(name, self.current_scope_id)
     }
 
-    pub fn create_symbol(&mut self, name: &str) -> Result<SymbolScopeId<SCOPEID,SYMID>, SymbolError<SCOPEID,SYMID>> {
+    pub fn create_symbol(&mut self, name: &str) -> Result<SymbolScopeId<SCOPEID,SYMID>, SymbolError> {
         self.sym_tree
             .create_symbol_in_scope(self.current_scope_id, name)
     }

@@ -25,9 +25,7 @@ pub trait SymIdTraits:
 {
 }
 
-
-pub trait SymValueTraits : Clone {
-}
+pub trait SymValueTraits: Clone {}
 
 impl ScopeIdTraits for u64 {}
 impl SymIdTraits for u64 {}
@@ -100,26 +98,15 @@ where
     }
 }
 
-#[derive(PartialEq, Eq, Clone)]
-pub enum SymbolError<SCOPEID, SYMID>
-where
-    SCOPEID: ScopeIdTraits,
-    SYMID: SymIdTraits,
+#[derive(PartialEq, Eq, Clone,Debug)]
+pub enum SymbolError
 {
+    AlreadyDefined,
     InvalidScope,
-    AlreadyDefined(SymbolScopeId<SCOPEID, SYMID>),
     Mismatch,
     NotFound,
     NoValue,
     InvalidId,
+    HitScopeBarrier,
 }
 
-impl<SCOPEID, SYMID> std::fmt::Debug for SymbolError<SCOPEID, SYMID>
-where
-    SCOPEID: ScopeIdTraits,
-    SYMID: SymIdTraits,
-{
-    fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        panic!()
-    }
-}

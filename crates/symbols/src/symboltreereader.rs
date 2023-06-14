@@ -32,7 +32,7 @@ where
     pub fn get_symbol_info(
         &self,
         name: &str,
-    ) -> Result<&SymbolInfo<SCOPEID, SYMID, SYMVALUE>, SymbolError<SCOPEID, SYMID>> {
+    ) -> Result<&SymbolInfo<SCOPEID, SYMID, SYMVALUE>, SymbolError> {
         let scope = self.current_scope.clone();
         let id = self
             .syms
@@ -44,7 +44,7 @@ where
     pub fn get_symbol_info_from_id(
         &self,
         id: SymbolScopeId<SCOPEID, SYMID>,
-    ) -> Result<&SymbolInfo<SCOPEID, SYMID, SYMVALUE>, SymbolError<SCOPEID, SYMID>> {
+    ) -> Result<&SymbolInfo<SCOPEID, SYMID, SYMVALUE>, SymbolError> {
         self.syms.get_symbol_info_from_id(id)
     }
 }
