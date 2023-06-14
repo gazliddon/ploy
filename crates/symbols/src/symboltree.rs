@@ -40,6 +40,13 @@ impl<T> Tree<T> {
     }
 }
 
+#[derive(Debug,PartialEq,Clone)]
+pub struct ScopeInfo {
+    pub name: String,
+    pub fqn: String
+}
+
+
 ////////////////////////////////////////////////////////////////////////////////
 // SymbolTree
 type ESymbolTreeTree<SCOPEID, SYMID> = ego_tree::Tree<SymbolTable<SCOPEID, SYMID>>;
@@ -96,7 +103,7 @@ where
     SYMID: SymIdTraits,
     V: Clone,
 {
-    pub fn get_node_id_from_scope_id(
+    fn get_node_id_from_scope_id(
         &self,
         scope_id: SCOPEID,
     ) -> Result<ESymbolNodeId, SymbolError<SCOPEID, SYMID>> {
@@ -427,6 +434,18 @@ where
         self.scope_id_to_symbol_info
             .get(&id)
             .ok_or(SymbolError::NotFound)
+    }
+
+    pub fn get_scope_info_from_id(&self, scope_id : SCOPEID) -> Option<ScopeInfo> {
+
+        let x = self.get_node_from_id(scope_id).ok()?.value();
+
+        let ret = ScopeInfo {
+            fqn: x.get_scope_name().to_owned(),
+            name: x.get_scope_fqn_name().to_owned(),
+        };
+
+        Some(ret)
     }
 }
 

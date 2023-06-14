@@ -3,7 +3,7 @@
 use std::path::Path;
 
 use logos::{internal::CallbackResult, Source};
-use ploy::{sources::SourceFile, *};
+use ploy::{sources::SourceFile, *, error::to_full_error};
 
 use frontend::*;
 use parsers::*;
@@ -14,19 +14,6 @@ pub fn load_text<P: AsRef<Path>>(p : P) -> String {
     panic!()
 }
 
-fn to_full_errror(e: FrontEndError, source_file : &SourceFile) -> PloyErrorKind {
-    let loc = source_file.get_file_span_from_offset(e.pos.start).unwrap();
-    let line = loc.span.location.line;
-    let col = loc.span.location.col;
-    let line_text = source_file.get_line(line).unwrap();
-    let spaces = " ".repeat(col);
-
-    let text = format!("{e}\nFile: {:?}\nLine: {} Col: {}\n\n{line_text}\n{}^", loc.origin, line +1, col+1, spaces);
-
-    let err = anyhow::anyhow!(text);
-    PloyErrorKind::Other(err)
-}
-
 pub fn as_ast<P>(text: &str, mut p: P) -> Result<Ast, PloyErrorKind>
 where
     P: for<'a> Parser<Span<'a>, ParseNode, FrontEndError>,
@@ -34,7 +21,7 @@ where
     let source_file = SourceFile::new(text.to_owned(), sources::SourceOrigin::Text);
 
     let merr = |e : FrontEndError| -> PloyErrorKind {
-        to_full_errror(e,&source_file)
+        to_full_error(e,&source_file)
     };
 
     let tokes = tokenize(&source_file);

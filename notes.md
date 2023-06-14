@@ -1,5 +1,5 @@
 # Front End
-* Refine errors bit
+* Refine errors a bit
 * Test errors
 * Special forms
     * macros

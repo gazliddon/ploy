@@ -69,7 +69,6 @@ fn parse_symbol(input: Span) -> PResult<ParseNode> {
 
 fn parse_builtin(input: Span) -> PResult<ParseNode> {
     use TokenKind::*;
-
     parse_kind(
         input,
         [Star, Plus, Minus, Slash, Equals],

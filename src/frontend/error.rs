@@ -54,6 +54,16 @@ impl FrontEndError {
     }
 }
 
+impl FrontEndError {
+    pub fn new<E: Into<FrontEndErrorKind>>( e: E, pos: std::ops::Range<usize> ) -> Self {
+        Self {
+            kind: e.into(),
+            severity: Severity::Error,
+            pos
+        }
+    }
+}
+
 impl<'a> ParseError<Span<'a>> for FrontEndError {
     fn from_error_kind(input: Span<'a>, kind: ParseErrorKind, severity: Severity) -> Self {
         let pos = get_text_range(input);

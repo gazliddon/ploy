@@ -5,11 +5,13 @@ pub enum Value {
     Unbound,
     Null,
     Macro,
+    Float(f64),
     Signed(i64),
     Unsigned(u64),
     Text(String),
-    Float(f64),
-    Node(AstNodeId),
+    Type,
+    Lambda(AstNodeId),
+    KeyWord,
 }
 
 impl<T: Into<String>> From<T> for Value {
@@ -37,8 +39,8 @@ impl std::fmt::Display for Value {
             Text(a) => format!("\"{a}\""),
             Macro => "macro".to_string(),
             Null => "null".to_string(),
-            Node(id) => format!("Node: {id:?}"),
             Unbound => "Unbound symbol".to_string(),
+            _ => panic!(),
         };
 
         f.write_str(&x)

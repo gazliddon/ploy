@@ -92,7 +92,7 @@ fn test_lambda() -> Result<(), PloyErrorKind> {
     use AstNodeKind::*;
 
     let test = vec![
-        ("(fn [x a a]  ", vec![Args]),
+        ("(fn [x a a]  )", vec![Args]),
         ("(fn [a b x] (print b) )", vec![Args, Application]),
         ( "(fn [a b x] (print b) (print c) '() :test)",
             vec![Args, Application, Application, List, KeyWord],
