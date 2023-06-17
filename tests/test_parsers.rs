@@ -9,6 +9,30 @@ use parsers::*;
 use unraveler::Parser;
 
 #[test]
+fn test_lamda_body()-> Result<(), PloyErrorKind> { 
+    use AstNodeKind::*;
+
+    let test = vec![
+        ("([a b] a b)", vec![Args, Symbol, Symbol]),
+        ("([])", vec![Args]),
+        ("([a b c] \"xxxxx\")", vec![Args, QuotedString]),
+
+    ];
+
+    test_parsers(parse_lambda_body, LambdaBody, &test)
+}
+
+#[test]
+fn test_multi_lambda_body()-> Result<(), PloyErrorKind> { 
+    use AstNodeKind::*;
+
+    let text = "([a b] a) ([a b] a)";
+    let ast = as_ast(text, parse_block)?;
+    Ok(())
+
+}
+
+#[test]
 fn test_define() -> Result<(), PloyErrorKind> {
     use AstNodeKind::*;
 
@@ -17,7 +41,7 @@ fn test_define() -> Result<(), PloyErrorKind> {
         ("(define x (fn[a] 12))", vec![Arg, Lambda]),
         ("(define y ())", vec![Arg, Null]),
         (
-            "(define  y ^{:test b :spam \"hello\"} ())",
+            "(define  ^{:test b :spam \"hello\"} y  ())",
             vec![Arg, Null],
         ),
     ];
@@ -92,10 +116,11 @@ fn test_lambda() -> Result<(), PloyErrorKind> {
     use AstNodeKind::*;
 
     let test = vec![
-        ("(fn [x a a]  )", vec![Args]),
-        ("(fn [a b x] (print b) )", vec![Args, Application]),
+        ("(fn ( [x a a] 1 ) ( [x a a] 1 )   )", vec![LambdaBody, LambdaBody]),
+        ("(fn [x a a]  )", vec![LambdaBody]),
+        ("(fn [a b x] (print b) )", vec![LambdaBody]),
         ( "(fn [a b x] (print b) (print c) '() :test)",
-            vec![Args, Application, Application, List, KeyWord],
+            vec![LambdaBody],
         ),
     ];
 

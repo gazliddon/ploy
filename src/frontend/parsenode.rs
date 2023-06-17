@@ -64,6 +64,7 @@ impl NodeBuilder {
         Self::new(kind, range.start, range.len())
     }
 
+
     pub fn child(mut self, k: ParseNode) -> Self {
         self.children.push(k);
         self

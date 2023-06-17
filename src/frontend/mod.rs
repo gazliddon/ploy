@@ -11,9 +11,9 @@ mod tokens;
 
 mod prelude {
     pub use super::{
-        ast::{to_ast, Ast, AstNode, AstNodeKind, },
+        ast::{to_ast, Ast, AstNode, AstNodeKind},
         ast::{AstNodeId, AstNodeMut, AstNodeRef},
-        error::{FrontEndErrorKind, PResult, FrontEndError},
+        error::{FrontEndError, FrontEndErrorKind, PResult},
         ploytokens::tokenize,
     };
 
@@ -25,3 +25,58 @@ mod prelude {
 }
 
 pub use prelude::*;
+
+use crate::error::to_full_error;
+use crate::error::PloyErrorKind;
+use crate::opts::Opts;
+use crate::sources::SourceOrigin;
+use crate::sources::{SourceFile, SourceLoader};
+use crate::symbols::SymbolTree;
+use std::path::Path;
+
+pub struct FrontEndCtx {
+    syms: SymbolTree,
+    opts: Opts,
+    ast: Ast,
+}
+
+#[derive(Clone,Debug)]
+pub struct ModuleJob {
+    source: SourceFile,
+    opts: Opts,
+}
+
+impl ModuleJob {
+    pub fn new(opts: &Opts, source: &SourceFile) -> Self {
+        Self {
+            opts: opts.clone(),
+            source: source.clone(),
+        }
+    }
+}
+
+pub struct Module {
+    syms: SymbolTree,
+    ast: Ast,
+    from: ModuleJob,
+}
+
+impl TryFrom<ModuleJob> for Module {
+    type Error = PloyErrorKind;
+
+    fn try_from(value: ModuleJob) -> Result<Self, Self::Error> {
+
+        let from = value.clone();
+        let mut syms = SymbolTree::new();
+
+        let tokes = tokenize(&value.source);
+        let mut ast = to_ast(&tokes, value.source.clone())?;
+        ast.process(&mut syms, &value.source)
+            .map_err(|e| to_full_error(e, &value.source))?;
+
+        let ret = Self { syms, ast, from };
+
+        Ok(ret)
+    }
+}
+

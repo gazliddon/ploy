@@ -28,10 +28,15 @@ impl SourceLoader {
         ret
     }
 
+    pub fn resolve_file_path<P: AsRef<Path>>(&self, p: P) -> Result<PathBuf, SourcesError> {
+        let ret  = self.searcher.search(&p)?;
+        Ok(ret)
+    }
+
     fn add_file<P: AsRef<Path>>(&mut self, p: P, text: String) -> Result<FileId, SourcesError> {
         let id = self.next_id;
 
-        if self.get_source_file_from_name(&p).is_some() {
+        if self.get_source_file_from_name(&p).is_ok() {
             Err(SourcesError::SourceIsAlreadyInDatabase)
         } else {
             let p = p.as_ref().to_path_buf();
@@ -44,14 +49,14 @@ impl SourceLoader {
         }
     }
 
-    pub fn get_source_file_from_name<P: AsRef<Path>>(&self, p: P) -> Option<&SourceFile> {
+    pub fn get_source_file_from_name<P: AsRef<Path>>(&self, p: P) -> Result<&SourceFile, SourcesError> {
         self.name_to_id
-            .get(p.as_ref())
+            .get(p.as_ref()).ok_or(SourcesError::NoSourceFile)
             .and_then(|id| self.get_source_file(*id))
     }
 
-    pub fn get_source_file(&self, file_id: FileId) -> Option<&SourceFile> {
-        self.id_to_file.get(&file_id)
+    pub fn get_source_file(&self, file_id: FileId) -> Result<&SourceFile, SourcesError> {
+        self.id_to_file.get(&file_id).ok_or(SourcesError::IllegalSourceId)
     }
 
     pub fn get_source_file_id<P: AsRef<Path>>(&self, p: P) -> Option<FileId> {
@@ -61,7 +66,7 @@ impl SourceLoader {
     pub fn load_file<P: AsRef<Path>>(&mut self, p: P) -> Result<FileId, SourcesError> {
         let p = self.searcher.search(&p)?;
 
-        if let Some(SourceFile {
+        if let Ok(SourceFile {
             origin: SourceOrigin::File(id, _),
             ..
         }) = self.get_source_file_from_name(&p)

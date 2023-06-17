@@ -6,4 +6,8 @@ pub enum SourcesError {
     SearchPathsError(#[from] SearchPathsError),
     #[error("Source already in database")]
     SourceIsAlreadyInDatabase,
+    #[error("Illegal source Id")]
+    IllegalSourceId,
+    #[error("Can't find source file")]
+    NoSourceFile,
 }

@@ -31,6 +31,7 @@ pub enum AstNodeKind {
     KeyWord,
     Define,
     Lambda,
+    LambdaBody,
     If,
     Let,
     Cond,
@@ -44,6 +45,7 @@ pub enum AstNodeKind {
     LetArgs,
     SetScope(ScopeId),
     MetaData,
+    Block,
     #[default]
     Nothing,
 }

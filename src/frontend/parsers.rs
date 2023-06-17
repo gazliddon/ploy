@@ -1,4 +1,3 @@
-use serde::de::Expected;
 use std::collections::HashMap;
 use thin_vec::{thin_vec, ThinVec};
 
@@ -154,10 +153,10 @@ pub fn parse_define(input: Span) -> PResult<ParseNode> {
 
     let body = preceded(
         alt((txt_tag("define"), txt_tag("def"))),
-        tuple((parse_arg, opt(parse_meta), parse_atom)),
+        tuple((opt(parse_meta), parse_arg, parse_atom)),
     );
 
-    let (rest, (sym, meta, val)) = parse_bracketed(body)(input)?;
+    let (rest, (meta, sym, val)) = parse_bracketed(body)(input)?;
 
     Ok((
         rest,
@@ -247,7 +246,7 @@ where
 
 pub fn parse_wrapped_many<'a, P, O>(
     open: TokenKind,
-    close : TokenKind,
+    close: TokenKind,
     expected: &str,
     mut p: P,
 ) -> impl FnMut(Span<'a>) -> Result<(Span<'a>, Vec<O>), FrontEndError>
@@ -324,20 +323,61 @@ pub fn parse_arg(input: Span) -> PResult<ParseNode> {
 pub fn parse_args(input: Span) -> PResult<ParseNode> {
     use {AstNodeKind::Args, SyntaxErrorKind::*, TokenKind::*};
     let (rest, matched) =
-        parse_wrapped_many(OpenSquareBracket, CloseSquareBracket,"]", cut(parse_arg))(input)?;
+        parse_wrapped_many(OpenSquareBracket, CloseSquareBracket, "]", cut(parse_arg))(input)?;
     let node = ParseNode::builder(Args, input, rest).children(matched);
     Ok((rest, node.build()))
 }
 
-pub fn parse_lambda(input: Span) -> PResult<ParseNode> {
-    use {AstNodeKind::Lambda, SyntaxErrorKind::Expected, TokenKind::*};
+pub fn parse_lambda_body(input: Span) -> PResult<ParseNode> {
+    let (rest, (args, forms)) = parse_bracketed(pair(parse_args, parse_forms))(input)?;
 
-    let (rest, (args, forms)) =
-        parse_bracketed(preceded(txt_tag("fn"), pair(cut(parse_args), parse_forms)))(input)?;
-
-    let node = ParseNode::builder(Lambda, input, rest)
+    let node = ParseNode::builder(AstNodeKind::LambdaBody, input, rest)
         .child(args)
         .children(forms)
+        .build();
+    Ok((rest, node))
+}
+
+pub fn parse_multi_lambda_body(input: Span) -> PResult<Vec<ParseNode>> {
+    let (rest, lambdas) = many0(parse_lambda_body)(input)?;
+    Ok((rest, lambdas))
+}
+
+pub fn parse_single_lambda_body(input: Span) -> PResult<Vec<ParseNode>> {
+    let (rest, (args, forms)) = pair(parse_args, parse_forms)(input)?;
+
+    let node = ParseNode::builder(AstNodeKind::LambdaBody, input, rest)
+        .child(args)
+        .children(forms)
+        .build();
+    Ok((rest, vec![node]))
+}
+
+pub fn parse_block(input: Span) -> PResult<ParseNode> {
+    let (rest,forms) = parse_multi_lambda_body(input)?;
+
+    let node = ParseNode::builder(AstNodeKind::Block, input, rest)
+        .children(forms)
+        .build();
+    Ok((rest, node))
+}
+
+pub fn parse_lambda(input: Span) -> PResult<ParseNode> {
+    use TokenKind::*;
+
+    let (rest,_) = tag(OpenBracket)(input)?;
+    let (rest, _) = txt_tag("fn")(rest)?;
+    let (rest, lambdas) = alt((parse_single_lambda_body,parse_multi_lambda_body ))(rest)?;
+    let (rest,_) = tag(CloseBracket)(rest)?;
+
+
+    // let (rest, lambdas) = parse_bracketed(preceded(
+    //     txt_tag("fn"),
+    //     alt((parse_multi_lambda_body, parse_single_lambda_body)),
+    // ))(input)?;
+
+    let node = ParseNode::builder(AstNodeKind::Lambda, input, rest)
+        .children(lambdas)
         .build();
     Ok((rest, node))
 }
@@ -382,13 +422,30 @@ pub fn parse_map(input: Span) -> PResult<ParseNode> {
     let node = ParseNode::builder(Map, input, rest).children(kids);
     Ok((rest, node.into()))
 }
+pub fn parse_single_meta(input: Span) -> PResult<ParseNode> {
+    let (rest, _) = tag(TokenKind::Caret)(input)?;
+    let (rest, tag) = parse_keyword(rest)?;
+    let is_true = ParseNode::builder(AstNodeKind::Bool, input, rest).build();
+    let pair = ParseNode::builder(AstNodeKind::KeyWordPair, input, rest)
+        .children([tag, is_true])
+        .build();
+    let meta = ParseNode::builder(AstNodeKind::MetaData, input, rest)
+        .child(pair)
+        .build();
 
-pub fn parse_meta(input: Span) -> PResult<ParseNode> {
+    Ok((rest, meta))
+}
+
+pub fn parse_meta_map(input: Span) -> PResult<ParseNode> {
     use {AstNodeKind::*, TokenKind::Caret};
     let (rest, _) = tag(Caret)(input)?;
     let (rest, kids) = parse_braced(many0(parse_keyword_pair))(rest)?;
     let node = ParseNode::builder(MetaData, input, rest).children(kids);
     Ok((rest, node.into()))
+}
+
+pub fn parse_meta(input: Span) -> PResult<ParseNode> {
+    alt((parse_single_meta, parse_meta_map))(input)
 }
 
 pub fn parse_let(input: Span) -> PResult<ParseNode> {
