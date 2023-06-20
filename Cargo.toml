@@ -17,6 +17,7 @@ logos="*"
 toml="*"
 unraveler  = {path = "crates/unraveler"}
 symbols  = {path = "crates/symbols"}
+steadfast  = {path = "crates/steadfast"}
 ego-tree="*"
 itertools="*"
 

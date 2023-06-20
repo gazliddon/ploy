@@ -19,4 +19,12 @@
 
 # Misc
 
+* n = 5 %101
+* highest bit = 2
+* want number pairs = 2 with in 2 bit slots
+
+
+
+
+
 

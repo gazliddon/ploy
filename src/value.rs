@@ -1,5 +1,7 @@
 use super::frontend::AstNodeId;
 
+use std::sync::Arc;
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum Value {
     Unbound,
@@ -8,16 +10,10 @@ pub enum Value {
     Float(f64),
     Signed(i64),
     Unsigned(u64),
-    Text(String),
+    Text(Arc<str>),
     Type,
     Lambda(AstNodeId),
     KeyWord,
-}
-
-impl<T: Into<String>> From<T> for Value {
-    fn from(x: T) -> Self {
-        Value::Text(x.into())
-    }
 }
 
 pub type OperationError<V> = Result<V, OperationErrorKind>;
@@ -88,10 +84,6 @@ impl Value {
             _ => Null,
         }
     }
-
-    pub fn into_text(self) -> Self {
-        Value::Text(format!("{self}"))
-    }
 }
 
 // signed + unsigned = unsigned
@@ -112,7 +104,7 @@ impl std::ops::Add for Value {
             (Float(a), Signed(b)) => Ok(Float(a + *b as f64)),
             (Float(a), Unsigned(b)) => Ok(Float(a + *b as f64)),
             (Float(a), Float(b)) => Ok(Float(a + *b)),
-            (Text(a), Text(b)) => Ok(Text(a + b)),
+            // (Text(a), Text(b)) => Ok(Text(a + b)),
 
             (Macro, _)
             | (_, Macro)
@@ -381,21 +373,8 @@ mod test {
         let res = a as f64 / b as f64;
         assert_eq!(v1.clone() / v2.clone(), Ok(Float(res)));
 
-        let a: Value = "hello".into();
-        let b: Value = " there".into();
-        let c = a + b;
-        assert_eq!(c, Ok("hello there".into()));
-
-        let a: Value = "hello".into();
-        let b = Float(10.0);
-        let c = a / b;
-        assert_eq!(c, Err(OperationErrorKind::IncompatibleOperands));
-
         let a = Float(10.0);
         assert_eq!(-a, Ok(Float(-10.0)));
 
-        let a: Value = "hello".into();
-        let b = -a;
-        assert_eq!(b, Err(OperationErrorKind::IllegalNegation));
     }
 }
