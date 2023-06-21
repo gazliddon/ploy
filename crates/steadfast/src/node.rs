@@ -1,21 +1,17 @@
 use bitvec::prelude::*;
-use std::{
-    borrow::BorrowMut,
-    ops::{Deref, Index},
-    sync::Arc,
-};
+use std::sync::Arc ;
 
 use thin_vec::ThinVec;
 
 #[derive(Default, Clone)]
-pub (crate) enum NodeType<T: Clone, const N: usize> {
+pub (crate) enum Node<T: Clone, const N: usize> {
     #[default]
     Empty,
     Value(T),
-    Branch(Arc<Node<T, N>>),
+    Branch(Arc<Chunk<T, N>>),
 }
 
-impl<T: Clone, const N: usize> NodeType<T, N> {
+impl<T: Clone, const N: usize> Node<T, N> {
     pub fn is_empty(&self) -> bool {
         match self {
             Self::Empty => true,
@@ -32,10 +28,10 @@ impl<T: Clone, const N: usize> NodeType<T, N> {
 }
 
 #[derive(Clone)]
-pub (crate) struct Node<T: Clone, const N: usize> {
+pub (crate) struct Chunk<T: Clone, const N: usize> {
     size: usize,
     bits: BitArray<u8>,
-    nodes: ThinVec<NodeType<T,N>>,
+    nodes: ThinVec<Node<T,N>>,
 }
 
 fn get_highest_bit(v: usize) -> Option<usize> {
@@ -48,7 +44,7 @@ fn get_highest_bit(v: usize) -> Option<usize> {
     None
 }
 
-impl<T: Clone, const N: usize> Default for Node<T, N> {
+impl<T: Clone, const N: usize> Default for Chunk<T, N> {
     fn default() -> Self {
 
         let mut x = ThinVec::with_capacity(N);
@@ -65,7 +61,7 @@ impl<T: Clone, const N: usize> Default for Node<T, N> {
     }
 }
 
-impl<T: Clone, const N: usize> Node<T, N> {
+impl<T: Clone, const N: usize> Chunk<T, N> {
     #[inline]
     fn children_per_node() -> usize {
         N
@@ -77,7 +73,7 @@ impl<T: Clone, const N: usize> Node<T, N> {
     }
 }
 
-impl<T, I, const N: usize> From<I> for Node<T, N>
+impl<T, I, const N: usize> From<I> for Chunk<T, N>
 where
     I: IntoIterator<Item = T> + ExactSizeIterator<Item = T>,
     T: Clone,
@@ -88,14 +84,14 @@ where
         assert!(it.len() <= Self::children_per_node());
 
         for (i, n) in it.enumerate() {
-            ret.child_set_node(i, NodeType::<T, N>::Value(n))
+            ret.child_set_node(i, Node::<T, N>::Value(n))
         }
 
         ret
     }
 }
 
-impl<T: Clone, const N: usize> Node<T, N> {
+impl<T: Clone, const N: usize> Chunk<T, N> {
     pub fn new() -> Self {
         Default::default()
     }
@@ -133,7 +129,7 @@ impl<T: Clone, const N: usize> Node<T, N> {
     }
 
     fn recalc_bits(&mut self) {
-        use NodeType::*;
+        use Node::*;
 
         for (i, n) in self.nodes.iter_mut().enumerate() {
             match n {
@@ -158,14 +154,14 @@ impl<T: Clone, const N: usize> Node<T, N> {
             let (idx, rest) = self.split_index(index);
 
             match &self.nodes[idx] {
-                NodeType::Value(v) => return Some(v),
-                NodeType::Branch(n) => n.get(rest),
-                NodeType::Empty => panic!(),
+                Node::Value(v) => return Some(v),
+                Node::Branch(n) => n.get(rest),
+                Node::Empty => panic!(),
             }
         }
     }
 
-    pub fn child_set_node(&mut self, n: usize, val: NodeType<T, N>) {
+    pub fn child_set_node(&mut self, n: usize, val: Node<T, N>) {
         assert!(n < Self::children_per_node());
         let size_to_gain = val.len();
         let not_empty = !val.is_empty();
@@ -179,15 +175,15 @@ impl<T: Clone, const N: usize> Node<T, N> {
     fn child_insert_value(&self, n: usize, val: T) -> Self {
         assert!(n <= Self::children_per_node());
         let mut ret = self.clone();
-        let val = NodeType::Value(val);
+        let val = Node::Value(val);
 
         if ret.nodes[n].is_empty() {
             ret.child_set_node(n, val)
         } else {
-            let mut child = Node::new();
+            let mut child = Chunk::new();
             child.child_set_node(0, val);
             child.child_set_node(1, ret.nodes[n].clone());
-            ret.child_set_node(n, NodeType::Branch(child.into()))
+            ret.child_set_node(n, Node::Branch(child.into()))
         }
         ret
     }
@@ -196,22 +192,22 @@ impl<T: Clone, const N: usize> Node<T, N> {
         if source.len() == 0 {
             Self::new()
         } else {
-            let mut dest: Vec<Node<T, N>> = Vec::with_capacity(source.len());
+            let mut dest: Vec<Chunk<T, N>> = Vec::with_capacity(source.len());
 
             for c in source.chunks(Self::children_per_node()) {
                 let v: Vec<_> = c.iter().map(|x| x.clone()).collect();
-                let n: Node<T, N> = Node::from(v.into_iter());
+                let n: Chunk<T, N> = Chunk::from(v.into_iter());
                 dest.push(n)
             }
 
             while dest.len() > 1 {
-                let mut new_dest: Vec<Node<T, N>> = vec![];
+                let mut new_dest: Vec<Chunk<T, N>> = vec![];
 
                 for c in dest.chunks(Self::children_per_node()).into_iter() {
-                    let mut new_node: Node<T, N> = Node::new();
+                    let mut new_node: Chunk<T, N> = Chunk::new();
 
                     for (i, n) in c.into_iter().enumerate() {
-                        let nt = NodeType::<T, N>::Branch(n.clone().into());
+                        let nt = Node::<T, N>::Branch(n.clone().into());
                         new_node.child_set_node(i, nt)
                     }
                     new_dest.push(new_node);
@@ -236,10 +232,10 @@ mod test {
         let pre_insert = vec![0, 1, 2, 3];
         let post_insert = vec![0, 100, 1, 2, 3];
 
-        let mut n0 = Node::<_,4>::new();
+        let mut n0 = Chunk::<_,4>::new();
 
         for i in 0..pre_insert.len() {
-            n0.child_set_node(i, NodeType::Value(i));
+            n0.child_set_node(i, Node::Value(i));
         }
 
         println!("Pre-insert");
@@ -271,27 +267,27 @@ mod test {
 
     #[test]
     fn test_basic_nodes() {
-        use NodeType::*;
+        use Node::*;
 
-        let mut n0 : Node<i32,4> = Node::new();
+        let mut n0 : Chunk<i32,4> = Chunk::new();
         n0.child_set_node(0, Value(0));
         n0.child_set_node(1, Value(1));
         n0.child_set_node(2, Value(2));
         n0.child_set_node(3, Value(3));
 
-        let mut n1 = Node::new();
+        let mut n1 = Chunk::new();
         n1.child_set_node(0, Value(4));
         n1.child_set_node(1, Value(5));
         n1.child_set_node(2, Value(6));
         n1.child_set_node(3, Value(7));
 
-        let mut n2 = Node::new();
+        let mut n2 = Chunk::new();
         n2.child_set_node(0, Value(8));
         n2.child_set_node(1, Value(9));
         n2.child_set_node(2, Value(10));
         n2.child_set_node(3, Value(11));
 
-        let mut n_a = Node::new();
+        let mut n_a = Chunk::new();
         n_a.child_set_node(0, Branch(n0.into()));
         n_a.child_set_node(1, Branch(n1.into()));
         n_a.child_set_node(2, Branch(n2.into()));

@@ -1,14 +1,13 @@
 
-use bitvec::prelude::*;
 use crate::node::*;
 use std::sync::Arc;
 
-
-const CHILDREN_PER_NODE: usize = 4;
+const DEFAULT_CHILDREN_PER_NODE: usize = 4;
 #[derive(Default)]
 
-struct PVec<T: Clone, const N: usize = CHILDREN_PER_NODE> {
-    node: Arc<Node<T, N>>,
+struct PVec<T: Clone, const N: usize = DEFAULT_CHILDREN_PER_NODE> {
+    // Maybe replace this with a node?
+    node: Arc<Chunk<T, N>>,
 }
 
 impl<T> std::fmt::Debug for PVec<T>
@@ -22,15 +21,15 @@ where
     }
 }
 
-impl<T: Clone, const N: usize> From<Node<T, N>> for PVec<T, N> {
-    fn from(node: Node<T, N>) -> Self {
+impl<T: Clone, const N: usize> From<Chunk<T, N>> for PVec<T, N> {
+    fn from(node: Chunk<T, N>) -> Self {
         Self { node: node.into() }
     }
 }
 
 impl<T: Clone> PVec<T> {
     pub fn new() -> Self {
-        Self::from(Node::new())
+        Self::from(Chunk::new())
     }
 
     pub fn get(&self, idx: usize) -> Option<&T> {
@@ -50,17 +49,17 @@ impl<T: Clone> PVec<T> {
     }
 }
 
-fn make_n_buckets<T: Clone, const N: usize>(n: usize) -> Vec<Arc<Node<T, N>>> {
+fn make_n_buckets<T: Clone, const N: usize>(n: usize) -> Vec<Arc<Chunk<T, N>>> {
     let mut dest: Vec<_> = Vec::with_capacity(n);
     for _ in 0..n {
-        dest.push(Node::new().into())
+        dest.push(Chunk::new().into())
     }
     dest
 }
 
 impl<T: Clone, const N: usize> PVec<T, N> {
     fn build(source: Vec<T>) -> Self {
-        let node = Node::build(source);
+        let node = Chunk::build(source);
         PVec::from(node)
     }
 }
@@ -71,8 +70,8 @@ mod test {
 
     #[test]
     fn test_pvec() {
-        println!("Node type size is {}", std::mem::size_of::<NodeType<i32,4>>());
-        println!("Node is {}", std::mem::size_of::<Node<i32,4>>());
+        println!("Node type size is {}", std::mem::size_of::<Node<i32,4>>());
+        println!("Node is {}", std::mem::size_of::<Chunk<i32,4>>());
         let data = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
         let pv = PVec::build(data);
 
@@ -85,6 +84,4 @@ mod test {
             assert_eq!(x, Some(idx as i32))
         }
     }
-
-    
 }
