@@ -1,10 +1,10 @@
 use bitvec::prelude::*;
-use std::sync::Arc ;
+use std::sync::Arc;
 
 use thin_vec::ThinVec;
 
 #[derive(Default, Clone)]
-pub (crate) enum Node<T: Clone, const N: usize> {
+pub(crate) enum Node<T: Clone, const N: usize> {
     #[default]
     Empty,
     Value(T),
@@ -28,10 +28,10 @@ impl<T: Clone, const N: usize> Node<T, N> {
 }
 
 #[derive(Clone)]
-pub (crate) struct Chunk<T: Clone, const N: usize> {
+pub(crate) struct Chunk<T: Clone, const N: usize> {
     size: usize,
     bits: BitArray<u8>,
-    nodes: ThinVec<Node<T,N>>,
+    nodes: ThinVec<Node<T, N>>,
 }
 
 fn get_highest_bit(v: usize) -> Option<usize> {
@@ -46,10 +46,9 @@ fn get_highest_bit(v: usize) -> Option<usize> {
 
 impl<T: Clone, const N: usize> Default for Chunk<T, N> {
     fn default() -> Self {
-
         let mut x = ThinVec::with_capacity(N);
 
-        for _ in 0..N  {
+        for _ in 0..N {
             x.push(Default::default());
         }
 
@@ -147,7 +146,7 @@ impl<T: Clone, const N: usize> Chunk<T, N> {
         total
     }
 
-    pub  fn get(&self, index: usize) -> Option<&T> {
+    pub fn get(&self, index: usize) -> Option<&T> {
         if index >= self.len() {
             None
         } else {
@@ -172,10 +171,9 @@ impl<T: Clone, const N: usize> Chunk<T, N> {
         self.nodes[n] = val
     }
 
-    fn child_insert_value(&self, n: usize, val: T) -> Self {
+    fn child_insert_node(&self, n: usize, val: Node<T,N>) -> Self { 
         assert!(n <= Self::children_per_node());
         let mut ret = self.clone();
-        let val = Node::Value(val);
 
         if ret.nodes[n].is_empty() {
             ret.child_set_node(n, val)
@@ -186,6 +184,67 @@ impl<T: Clone, const N: usize> Chunk<T, N> {
             ret.child_set_node(n, Node::Branch(child.into()))
         }
         ret
+
+    }
+
+    fn get_append_index(&self) -> Option<usize> {
+        // Find an unused slot at end of data
+        for idx in N-1..=0 {
+            if *self.bits.get(idx).unwrap() {
+                if idx != N-1 {
+                    return Some(idx)
+                }
+            }
+        }
+        None
+    }
+
+    pub (crate) fn append_node(&self, val: Node<T,N>) -> Self { 
+        let mut ret = self.clone();
+
+        if let Some(idx) = self.get_append_index() {
+            ret.child_set_node(idx, val)
+        } else {
+            let mut child = Chunk::new();
+            child.child_set_node(0, ret.nodes.last().unwrap().clone());
+            child.child_set_node(1, val);
+            ret.child_set_node(N-1, Node::Branch(child.into()))
+        }
+
+        ret
+    }
+
+    fn child_insert_value(&self, n: usize, val: T) -> Self {
+        let val = Node::Value(val);
+        self.child_insert_node(n, val)
+    }
+
+    pub (crate) fn insert_value(&self, index: usize, v: T) -> Self {
+        self.insert_node(index, Node::Value(v))
+    }
+    pub(crate) fn insert_chunk(&self, index: usize, node: Arc<Self>) -> Self { 
+        self.insert_node(index, Node::Branch(node))
+    }
+
+    pub (crate) fn insert_node(&self, index: usize, node: Node<T, N>) -> Self {
+        let (idx, rest) = self.split_index(index);
+
+        match &self.nodes[idx] {
+            Node::Empty => {
+                let mut ret = self.clone();
+                ret.child_set_node(idx, node);
+                ret
+            }
+            Node::Value(..) => {
+                // if theres a value I need to insert at the value
+                self.child_insert_node(idx, node)
+            }
+            Node::Branch(n) => {
+                let mut ret = self.clone();
+                ret.child_set_node(idx, Node::Branch(n.insert_node(rest, node).into()));
+                ret
+            }
+        }
     }
 
     pub fn build(source: Vec<T>) -> Self {
@@ -232,14 +291,8 @@ mod test {
         let pre_insert = vec![0, 1, 2, 3];
         let post_insert = vec![0, 100, 1, 2, 3];
 
-        let mut n0 = Chunk::<_,4>::new();
-
-        for i in 0..pre_insert.len() {
-            n0.child_set_node(i, Node::Value(i));
-        }
-
+        let n0 = Chunk::<_, 4>::build(pre_insert.clone());
         println!("Pre-insert");
-
         for i in 0..n0.len() {
             println!("{:?}", n0.get(i))
         }
@@ -251,6 +304,7 @@ mod test {
         for i in 0..n2.len() {
             println!("{:?}", n2.get(i))
         }
+
         println!("");
 
         println!("Checking");
@@ -264,12 +318,34 @@ mod test {
         println!("");
         println!("");
     }
+    #[test]
+    fn test_insert() {
+        println!("Low level insert testing");
+        let pre_insert = vec![0, 1, 2, 3,255,255,255];
+        let _post_insert = vec![0, 100, 1, 2, 3];
+
+        let node = Chunk::<_, 4>::build(pre_insert);
+
+        for i in 0..node.len() {
+            println!("{:?}", node.get(i))
+        }
+        println!("");
+
+        let node2 = node.insert_chunk(1, node.clone().into());
+
+        for i in 0..node2.len() {
+            println!("{:?}", node2.get(i))
+        }
+
+        println!("");
+
+    }
 
     #[test]
     fn test_basic_nodes() {
         use Node::*;
 
-        let mut n0 : Chunk<i32,4> = Chunk::new();
+        let mut n0: Chunk<i32, 4> = Chunk::new();
         n0.child_set_node(0, Value(0));
         n0.child_set_node(1, Value(1));
         n0.child_set_node(2, Value(2));
