@@ -1,7 +1,8 @@
-use bitvec::prelude::*;
+// use bitvec::prelude::*;
 use std::sync::Arc;
 
 use thin_vec::ThinVec;
+
 
 #[derive(Default, Clone)]
 pub(crate) enum Node<T: Clone, const N: usize> {
@@ -30,18 +31,16 @@ impl<T: Clone, const N: usize> Node<T, N> {
 #[derive(Clone)]
 pub(crate) struct Chunk<T: Clone, const N: usize> {
     size: usize,
-    bits: BitArray<u8>,
     nodes: ThinVec<Node<T, N>>,
 }
 
 fn get_highest_bit(v: usize) -> Option<usize> {
-    let bits = std::mem::size_of::<usize>() * 8;
-    for i in (0..bits).rev() {
-        if v & 1 << i != 0 {
-            return Some(i);
-        }
+    let leading_zeros = v.leading_zeros();
+    if leading_zeros == usize::BITS - 1 {
+        None
+    } else {
+        Some( ( 31 - leading_zeros ) as usize )
     }
-    None
 }
 
 impl<T: Clone, const N: usize> Default for Chunk<T, N> {
@@ -54,7 +53,6 @@ impl<T: Clone, const N: usize> Default for Chunk<T, N> {
 
         Self {
             size: Default::default(),
-            bits: Default::default(),
             nodes: x,
         }
     }
@@ -115,35 +113,12 @@ impl<T: Clone, const N: usize> Chunk<T, N> {
                 if r.contains(&index) {
                     return (idx, index - base);
                 }
+
                 base = base + cell_size;
             }
         }
 
         panic!()
-    }
-
-    fn post_init(&mut self) {
-        self.recalc_bits();
-        self.size = self.recalc_size();
-    }
-
-    fn recalc_bits(&mut self) {
-        use Node::*;
-
-        for (i, n) in self.nodes.iter_mut().enumerate() {
-            match n {
-                Empty => self.bits.set(i, false),
-                Value(_) | Branch(_) => self.bits.set(i, true),
-            }
-        }
-    }
-
-    fn recalc_size(&self) -> usize {
-        let mut total = 0;
-        for x in &self.nodes {
-            total += x.len();
-        }
-        total
     }
 
     pub fn get(&self, index: usize) -> Option<&T> {
@@ -163,11 +138,8 @@ impl<T: Clone, const N: usize> Chunk<T, N> {
     pub fn child_set_node(&mut self, n: usize, val: Node<T, N>) {
         assert!(n < Self::children_per_node());
         let size_to_gain = val.len();
-        let not_empty = !val.is_empty();
-
         let size_to_lose = self.nodes[n].len();
         self.size += size_to_gain - size_to_lose;
-        self.bits.set(n, not_empty);
         self.nodes[n] = val
     }
 
@@ -188,15 +160,16 @@ impl<T: Clone, const N: usize> Chunk<T, N> {
     }
 
     fn get_append_index(&self) -> Option<usize> {
+        let mut lowest = None;
         // Find an unused slot at end of data
         for idx in N-1..=0 {
-            if *self.bits.get(idx).unwrap() {
-                if idx != N-1 {
-                    return Some(idx)
-                }
+            if self.nodes.is_empty() {
+                lowest = Some(idx)
+            } else {
+                break
             }
         }
-        None
+        lowest
     }
 
     pub (crate) fn append_node(&self, val: Node<T,N>) -> Self { 
