@@ -1,6 +1,8 @@
 use std::sync::Arc;
 use thin_vec::ThinVec;
 
+use super::utils::get_highest_bit;
+
 trait BitValuesTrait {
     const NON_ZERO: ();
     const BITS: u32;
@@ -16,15 +18,6 @@ impl<const NUM_OF_BITS: usize> BitValuesTrait for BitValues<NUM_OF_BITS> {
     const MASK: u32 = ( (1 << NUM_OF_BITS ) -1 ) as u32;
 }
 
-fn get_highest_bit(v: usize) -> Option<usize> {
-    let bits = std::mem::size_of::<usize>() * 8;
-    for i in (0..bits).rev() {
-        if v & 1 << i != 0 {
-            return Some(i);
-        }
-    }
-    None
-}
 
 #[derive(Default, Clone, Debug)]
 pub struct BitData<const N: usize> {
@@ -277,7 +270,6 @@ impl<T: Clone, const N: usize> PVec<T, N> {
 mod test {
     use super::*;
 
-    #[test]
     fn test_it() {
         use std::mem::size_of;
 

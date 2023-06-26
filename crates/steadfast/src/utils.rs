@@ -1,6 +1,7 @@
 use num_traits::PrimInt;
 
-pub fn get_num_of_bits<T: PrimInt>() -> usize {
+#[inline]
+pub fn get_num_of_bits<T>() -> usize {
     std::mem::size_of::<T>() * 8
 }
 

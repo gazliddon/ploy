@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use thin_vec::ThinVec;
 
+use super::utils::get_highest_bit;
 
 #[derive(Default, Clone)]
 pub(crate) enum Node<T: Clone, const N: usize> {
@@ -32,15 +33,6 @@ impl<T: Clone, const N: usize> Node<T, N> {
 pub(crate) struct Chunk<T: Clone, const N: usize> {
     size: usize,
     nodes: ThinVec<Node<T, N>>,
-}
-
-fn get_highest_bit(v: usize) -> Option<usize> {
-    let leading_zeros = v.leading_zeros();
-    if leading_zeros == usize::BITS - 1 {
-        None
-    } else {
-        Some( ( 31 - leading_zeros ) as usize )
-    }
 }
 
 impl<T: Clone, const N: usize> Default for Chunk<T, N> {
