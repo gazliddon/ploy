@@ -564,6 +564,7 @@ name = "steadfast"
 version = "0.1.0"
 dependencies = [
  "bitvec",
+ "itertools",
  "num-traits",
  "seq-macro",
  "thin-vec",
