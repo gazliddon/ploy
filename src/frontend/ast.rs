@@ -27,6 +27,7 @@ pub enum AstNodeKind {
     KeyWordPair,
     Symbol,
     InternedSymbol(SymbolScopeId),
+    DefineSymbol(SymbolScopeId),
     Scope,
     KeyWord,
     Define,

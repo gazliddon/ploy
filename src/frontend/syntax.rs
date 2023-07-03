@@ -135,7 +135,7 @@ impl Ast {
         source: &SourceFile,
     ) -> Result<(), FrontEndError> {
         self.add_scopes(syms, source)?;
-        self.intern_defines(syms, source)?;
+        self.intern_symbol_assignments(syms, source)?;
         self.intern_refs(syms, source)?;
         self.create_values(syms, source)?;
         Ok(())
@@ -234,29 +234,28 @@ impl Ast {
         Ok(())
     }
 
-    /// Change all symbol defs to interned symbols
-    fn intern_defines(
+    /// Change all symbol defs, lambdas and defines, to symbol ids
+    fn intern_symbol_assignments(
         &mut self,
         syms: &mut SymbolTree,
         source: &SourceFile,
     ) -> Result<(), FrontEndError> {
         use AstNodeKind::*;
-
         let mut current_scope = syms.get_root_scope_id();
         let nodes = get_rec_ids(&self.tree, self.tree.root().id());
 
-        for id in nodes {
-            let n = self.tree.get(id).unwrap();
+        for id in &nodes {
+            let n = self.tree.get(*id).unwrap();
             let v = n.value();
             match v.kind {
                 SetScope(id) => current_scope = id,
                 Arg => {
-                    let sym = self.tree.get(id).unwrap();
+                    let sym = self.tree.get(*id).unwrap();
                     let name = &source.text[sym.value().text_range.clone()];
                     let sym_id = syms
                         .create_symbol_in_scope(current_scope, name)
                         .expect("Symbol exists TODO: error properly");
-                    self.change_node_kind(id, AstNodeKind::InternedSymbol(sym_id))
+                    self.change_node_kind(*id, AstNodeKind::InternedSymbol(sym_id))
                 }
                 _ => (),
             }

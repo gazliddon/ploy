@@ -56,9 +56,9 @@ impl ModuleJob {
 }
 
 pub struct Module {
-    syms: SymbolTree,
-    ast: Ast,
-    from: ModuleJob,
+    pub syms: SymbolTree,
+    pub ast: Ast,
+    pub from: ModuleJob,
 }
 
 impl TryFrom<ModuleJob> for Module {
