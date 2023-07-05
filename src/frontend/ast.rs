@@ -1,5 +1,5 @@
-use std::{collections::HashMap, default};
 use logos::Source;
+use std::{collections::HashMap, default};
 use thin_vec::{thin_vec, ThinVec};
 
 use unraveler::{
@@ -7,8 +7,11 @@ use unraveler::{
     ParseError,
 };
 
-use crate::{symbols::{ ScopeId,SymbolScopeId }, sources::{SourceFile, FileSpan}};
-use super::{prelude::*, ploytokens::SlimToken};
+use super::{ploytokens::SlimToken, prelude::*};
+use crate::{
+    sources::{FileSpan, SourceFile},
+    symbols::{ScopeId, SymbolScopeId},
+};
 
 #[derive(Clone, PartialEq, Debug, Default)]
 pub enum AstNodeKind {
@@ -70,7 +73,7 @@ pub struct AstNode {
     pub kind: AstNodeKind,
     pub token_range: std::ops::Range<usize>,
     pub text_range: std::ops::Range<usize>,
-    pub text_span : FileSpan,
+    pub text_span: FileSpan,
 }
 
 pub fn get_text_range(tokes_range: &[SlimToken]) -> std::ops::Range<usize> {
@@ -93,7 +96,9 @@ impl AstNode {
 
     fn from_parse_node(node: &ParseNode, tokes: &[SlimToken], source_file: &SourceFile) -> Self {
         let text_range = get_text_range(&tokes[node.range.clone()]);
-        let text_span = source_file.get_file_span_from_range(text_range.clone()).expect("Invalid range");
+        let text_span = source_file
+            .get_file_span_from_range(text_range.clone())
+            .expect("Invalid range");
         Self {
             kind: node.kind.clone(),
             token_range: node.range.clone(),
@@ -123,6 +128,23 @@ pub struct Ast {
 }
 
 impl Ast {
+    pub fn get_source_file(&self) -> &SourceFile {
+        &self.source_file
+    }
+
+    /// Get all of the ids of this node Recursively, depth first
+    fn get_rec_ids_inner(&self, id: AstNodeId, nodes: &mut Vec<AstNodeId>) {
+        nodes.push(id);
+        let kids = self.tree.get(id).unwrap().children().map(|n| n.id());
+        for k in kids {
+            self.get_rec_ids_inner(k, nodes)
+        }
+    }
+    pub fn get_rec_ids(&self, id: AstNodeId) -> Vec<AstNodeId> {
+        let mut nodes = vec![];
+        self.get_rec_ids_inner(id, &mut nodes);
+        nodes
+    }
     fn add_node(&mut self, parent_id: Option<AstNodeId>, parse_node: ParseNode) {
         let v = AstNode::from_parse_node(&parse_node, &self.tokens, &self.source_file);
 
@@ -146,20 +168,22 @@ impl Ast {
     }
 
     pub fn new(parse_node: ParseNode, tokes: &[Token], source_file: SourceFile) -> Self {
-
-        let tokens = tokes.iter().map(|t|SlimToken {
-            kind: t.kind.clone(),
-            location: t.location.clone(),
-            extra: source_file.get_file_span(t.location.start, t.location.len).expect("Invalid offset"),
-
-        }).collect();
+        let tokens = tokes
+            .iter()
+            .map(|t| SlimToken {
+                kind: t.kind.clone(),
+                location: t.location.clone(),
+                extra: source_file
+                    .get_file_span(t.location.start, t.location.len)
+                    .expect("Invalid offset"),
+            })
+            .collect();
 
         let mut ret = Self {
             tree: AstTree::new(Default::default()),
             meta_data: Default::default(),
             source_file,
             tokens,
-
         };
 
         ret.add_node(None, parse_node);
@@ -170,9 +194,8 @@ impl Ast {
 
 struct UserError {
     error: FrontEndError,
-    loc : FileSpan,
+    loc: FileSpan,
 }
-
 
 pub fn to_ast(tokes: &[Token], source_file: SourceFile) -> Result<Ast, FrontEndError> {
     let tokens = Span::from_slice(tokes);

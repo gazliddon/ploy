@@ -23,6 +23,11 @@ impl ParseNode {
         self.kind = kind;
         self
     }
+    pub fn change_meta(mut self, meta: Option<ParseNode>) -> Self {
+        self.meta_data = meta.map(|m| m.into());
+        self
+    }
+
     pub fn is_kind(&self, k: AstNodeKind) -> bool {
         self.kind == k
     }

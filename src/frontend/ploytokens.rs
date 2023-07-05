@@ -53,7 +53,7 @@ impl unraveler::Collection for TokenKind {
 }
 
 fn to_tokens_kinds(source_file: &SourceFile) -> Vec<(TokenKind, std::ops::Range<usize>)> {
-    TokenKind::lexer(&source_file.text)
+    TokenKind::lexer(source_file.text())
         .spanned()
         .map(|(tok_res, pos)| match tok_res {
             Ok(kind) => (kind, pos),
@@ -68,7 +68,7 @@ fn to_tokens(source_file: &SourceFile) -> Vec<Token> {
         .map(|(kind, r)| Token {
             kind,
             location: TextSpan::new(r.start, r.len()),
-                extra: ParseText::new(&source_file.text,r.clone()),
+                extra: ParseText::new(source_file.text(),r.clone()),
         })
         .collect()
 }

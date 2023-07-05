@@ -34,6 +34,8 @@ use crate::sources::{SourceFile, SourceLoader};
 use crate::symbols::SymbolTree;
 use std::path::Path;
 
+use self::syntax::AstLowerer;
+
 pub struct FrontEndCtx {
     syms: SymbolTree,
     opts: Opts,
@@ -71,7 +73,13 @@ impl TryFrom<ModuleJob> for Module {
 
         let tokes = tokenize(&value.source);
         let mut ast = to_ast(&tokes, value.source.clone())?;
-        ast.process(&mut syms, &value.source)
+
+        let mut ast_lowerer = AstLowerer {
+            syms: &mut syms,
+            ast: &mut ast,
+        };
+
+        ast_lowerer.lower()
             .map_err(|e| to_full_error(e, &value.source))?;
 
         let ret = Self { syms, ast, from };

@@ -7,6 +7,19 @@ pub struct CodeGen<'a> {
     module: &'a Module,
 }
 
+struct ApplicationInfo {
+    kind: AstNodeKind,
+    args: ()
+}
+
+impl ApplicationInfo {
+    pub fn mew(_node: AstNodeRef) -> Self {
+        panic!()
+    }
+}
+
+use thin_vec::ThinVec;
+
 impl<'a> CodeGen<'a> {
     pub fn new(module: &'a Module) -> Self {
         Self { module }
@@ -31,12 +44,21 @@ impl<'a> CodeGen<'a> {
         match &node.value().kind {
             SetScope(..) => {}
 
-            Define => {
+            DefineSymbol(_symbol_id) => {
                 // get define result into a register
                 // move register to variable
             }
 
-            Application => {}
+            Application => {
+                let n = node.first_child().unwrap();
+                match &n.value().kind {
+                    Application => (),
+                    InternedSymbol(..) => (),
+                    BuiltIn => (),
+                    _ => panic!()
+                }
+
+            }
 
             BuiltIn => {}
 

@@ -1,4 +1,5 @@
 /// Checks AST for Syntax errors
+/// Does some AST lowering
 /// and other processing
 use super::prelude::*;
 
@@ -16,6 +17,7 @@ use thiserror::Error;
 use unraveler::Item;
 
 use itertools::Itertools;
+use symbols::SymbolResolutionBarrier;
 
 #[derive(Debug, Error, Clone)]
 pub enum SyntaxErrorKind {
@@ -31,7 +33,6 @@ pub enum SyntaxErrorKind {
     InvalidArgument,
     #[error("Expected {0}")]
     Expected(String),
-
     #[error("Undefined symbol {0}")]
     UndefinedSymbol(String),
 }
@@ -46,10 +47,9 @@ fn to_kinds(x: &[Token], txt: &str) -> Vec<(TokenKind, String)> {
         .collect()
 }
 
-pub struct SyntaxCtx<'a> {
-    syms: &'a mut SymbolTree,
-    ast: &'a mut super::ast::Ast,
-    text: &'a str,
+pub struct AstLowerer<'a> {
+    pub syms: &'a mut SymbolTree,
+    pub ast: &'a mut super::ast::Ast,
 }
 
 fn num_of_children(n: AstNodeRef) -> usize {
@@ -79,65 +79,12 @@ fn min_args(args: &[AstNodeRef], min: usize) -> Result<(), SyntaxErrorKind> {
     }
 }
 
-/// Get all of the ids of this node Recursively, depth first
-fn get_rec_ids_inner(tree: &AstTree, id: AstNodeId, nodes: &mut Vec<AstNodeId>) {
-    nodes.push(id);
-    let kids = tree.get(id).unwrap().children().map(|n| n.id());
-    for k in kids {
-        get_rec_ids_inner(tree, k, nodes)
-    }
-}
-
-fn get_rec_ids(tree: &AstTree, id: AstNodeId) -> Vec<AstNodeId> {
-    let mut nodes = vec![];
-    get_rec_ids_inner(tree, id, &mut nodes);
-    nodes
-}
-
-fn get_rec_ids_with_scope_inner(
-    tree: &AstTree,
-    id: AstNodeId,
-    mut current_scope: ScopeId,
-    nodes: &mut Vec<(ScopeId, AstNodeId)>,
-) -> ScopeId {
-    let node = tree.get(id).unwrap();
-
-    if let AstNodeKind::SetScope(x) = node.value().kind {
-        current_scope = x;
-    } else {
-        nodes.push((current_scope, id));
-
-        let kids = tree.get(id).unwrap().children().map(|n| n.id());
-
-        for k in kids {
-            current_scope = get_rec_ids_with_scope_inner(tree, k, current_scope, nodes);
-        }
-    }
-
-    current_scope
-}
-
-fn get_rec_ids_with_scope(
-    tree: &AstTree,
-    id: AstNodeId,
-    current_scope: ScopeId,
-) -> Vec<(ScopeId, AstNodeId)> {
-    let id = tree.get(id).unwrap().id();
-    let mut nodes: Vec<_> = vec![];
-    get_rec_ids_with_scope_inner(tree, id, current_scope, &mut nodes);
-    nodes
-}
-
-impl Ast {
-    pub fn process(
-        &mut self,
-        syms: &mut SymbolTree,
-        source: &SourceFile,
-    ) -> Result<(), FrontEndError> {
-        self.add_scopes(syms, source)?;
-        self.intern_symbol_assignments(syms, source)?;
-        self.intern_refs(syms, source)?;
-        self.create_values(syms, source)?;
+impl<'a> AstLowerer<'a> {
+    pub fn lower(&mut self) -> Result<(), FrontEndError> {
+        self.add_scopes()?;
+        self.intern_symbol_assignments()?;
+        self.intern_refs()?;
+        self.create_values()?;
         Ok(())
     }
 
@@ -149,18 +96,15 @@ impl Ast {
     /// then
     /// previous node = create a unique new scope
     /// after node = return to the current scope
-    fn set_scope_for_node(
-        &mut self,
-        syms: &mut SymbolTree,
-        id: AstNodeId,
-        current_scope: ScopeId,
-    ) -> ScopeId {
-        let mut n = self.tree.get_mut(id).unwrap();
+    fn set_scope_for_node(&mut self, id: AstNodeId, current_scope: ScopeId) -> ScopeId {
+        let mut n = self.ast.tree.get_mut(id).unwrap();
         let v = n.value();
 
         if v.kind.creates_new_scope() {
-            let new_scope_name = format!("scope_{}", syms.get_next_scope_id());
-            let new_scope = syms.create_or_get_scope_for_parent(&new_scope_name, current_scope);
+            let new_scope_name = format!("scope_{}", self.syms.get_next_scope_id());
+            let new_scope = self
+                .syms
+                .create_or_get_scope_for_parent(&new_scope_name, current_scope);
             let before = v.change_kind(AstNodeKind::SetScope(new_scope));
             let after = v.change_kind(AstNodeKind::SetScope(current_scope));
             n.insert_before(before);
@@ -172,60 +116,39 @@ impl Ast {
     }
 
     /// Recursively scopes nodes that need a unique scope
-    fn scope_node_recursive(
-        &mut self,
-        syms: &mut SymbolTree,
-        id: AstNodeId,
-        mut current_scope: ScopeId,
-    ) {
-        current_scope = self.set_scope_for_node(syms, id, current_scope);
+    fn scope_node_recursive(&mut self, id: AstNodeId, mut current_scope: ScopeId) {
+        current_scope = self.set_scope_for_node(id, current_scope);
 
-        let n = self.tree.get(id).unwrap();
+        let n = self.ast.tree.get(id).unwrap();
         let k_ids: ThinVec<_> = n.children().map(|n| n.id()).collect();
         for id in k_ids {
-            self.scope_node_recursive(syms, id, current_scope)
+            self.scope_node_recursive(id, current_scope)
         }
     }
 
-    fn change_node_kind(&mut self, id: AstNodeId, new_kind: AstNodeKind) {
-        let mut sym = self.tree.get_mut(id).unwrap();
-        sym.value().kind = new_kind
-    }
 
     /// Add scope setting, unsetting for all forms that need it
-    fn add_scopes(
-        &mut self,
-        syms: &mut SymbolTree,
-        _source: &SourceFile,
-    ) -> Result<(), FrontEndError> {
-        let id = self.tree.root().id();
-        let current_scope = syms.get_root_scope_id();
-        self.scope_node_recursive(syms, id, current_scope);
+    fn add_scopes(&mut self) -> Result<(), FrontEndError> {
+        let id = self.ast.tree.root().id();
+        let current_scope = self.syms.get_root_scope_id();
+        self.scope_node_recursive(id, current_scope);
         Ok(())
     }
 
-    fn intern_refs(
-        &mut self,
-        syms: &mut SymbolTree,
-        source: &SourceFile,
-    ) -> Result<(), FrontEndError> {
-        use symbols::SymbolResolutionBarrier;
-        use SyntaxErrorKind::*;
-        let id = self.tree.root().id();
-        let root_scope = syms.get_root_scope_id();
-        let nodes = get_rec_ids_with_scope(&self.tree, id, root_scope);
 
-        for (scope, id) in nodes.into_iter() {
-            let node = self.tree.get(id).unwrap();
-            let v = &node.value();
+    fn intern_refs(&mut self) -> Result<(), FrontEndError> {
+        let nodes = self
+            .get_node_values_with_scope(self.ast.tree.root().id(), self.syms.get_root_scope_id());
 
+        for (id, v, current_scope) in nodes.into_iter() {
+            use {SymbolResolutionBarrier::Global, SyntaxErrorKind::*};
             if v.kind == AstNodeKind::Symbol {
-                let name = source.get_text(v.text_range.clone()).unwrap();
-                let sym_id = syms
-                    .resolve_label(name, scope, SymbolResolutionBarrier::Global)
-                    .map_err(|_e| {
-                        FrontEndError::new(UndefinedSymbol(name.to_owned()), v.text_range.clone())
-                    })?;
+                let r = &v.text_range;
+                let name = self.get_source_text(r);
+                let sym_id = self
+                    .syms
+                    .resolve_label(name, current_scope, Global)
+                    .map_err(|_e| FrontEndError::new(UndefinedSymbol(name.to_owned()), r))?;
 
                 self.change_node_kind(id, AstNodeKind::InternedSymbol(sym_id))
             }
@@ -234,28 +157,44 @@ impl Ast {
         Ok(())
     }
 
-    /// Change all symbol defs, lambdas and defines, to symbol ids
-    fn intern_symbol_assignments(
-        &mut self,
-        syms: &mut SymbolTree,
-        source: &SourceFile,
-    ) -> Result<(), FrontEndError> {
-        use AstNodeKind::*;
-        let mut current_scope = syms.get_root_scope_id();
-        let nodes = get_rec_ids(&self.tree, self.tree.root().id());
-
-        for id in &nodes {
-            let n = self.tree.get(*id).unwrap();
+    fn get_node_values_with_scope(
+        &self,
+        id: AstNodeId,
+        current_scope: ScopeId,
+    ) -> Vec<(AstNodeId, AstNode, ScopeId)> {
+        let mut current_scope = current_scope;
+        let mut ret = vec![];
+        for id in self.ast.get_rec_ids(id).into_iter() {
+            let n = self.ast.tree.get(id).unwrap();
             let v = n.value();
             match v.kind {
-                SetScope(id) => current_scope = id,
-                Arg => {
-                    let sym = self.tree.get(*id).unwrap();
-                    let name = &source.text[sym.value().text_range.clone()];
-                    let sym_id = syms
-                        .create_symbol_in_scope(current_scope, name)
-                        .expect("Symbol exists TODO: error properly");
-                    self.change_node_kind(*id, AstNodeKind::InternedSymbol(sym_id))
+                AstNodeKind::SetScope(id) => current_scope = id,
+                _ => ret.push((n.id(), v.clone(), current_scope)),
+            }
+        }
+        ret
+    }
+
+    /// Lower defines to include the symbol id
+    fn lower_defines(
+        &mut self,
+        syms: &mut SymbolTree,
+        _: &SourceFile,
+    ) -> Result<(), FrontEndError> {
+        let nodes =
+            self.get_node_values_with_scope(self.ast.tree.root().id(), syms.get_root_scope_id());
+
+        for (id, value, _) in nodes.into_iter() {
+            match &value.kind {
+                AstNodeKind::Define => {
+                    let n = self.ast.tree.get(id).unwrap();
+                    let sym = n.first_child().unwrap();
+                    if let AstNodeKind::InternedSymbol(sym_id) = sym.value().kind {
+                        self.ast.tree.get_mut(sym.id()).unwrap().detach();
+                        self.change_node_kind(id, AstNodeKind::DefineSymbol(sym_id))
+                    } else {
+                        panic!("Whoops!");
+                    }
                 }
                 _ => (),
             }
@@ -264,11 +203,42 @@ impl Ast {
         Ok(())
     }
 
-    fn create_values(
-        &mut self,
-        _syms: &mut SymbolTree,
-        _source: &SourceFile,
-    ) -> Result<(), FrontEndError> {
+    /// Change all symbol defs, lambdas and defines, to symbol ids
+    fn intern_symbol_assignments(&mut self) -> Result<(), FrontEndError> {
+        let nodes = self
+            .get_node_values_with_scope(self.ast.tree.root().id(), self.syms.get_root_scope_id());
+
+        for (id, value, current_scope) in nodes.into_iter() {
+            match &value.kind {
+                AstNodeKind::Arg => {
+                    let name = self.get_source_text(&value.text_range).to_owned();
+                    let sym_id = self
+                        .syms
+                        .create_symbol_in_scope(current_scope, &name)
+                        .expect("Symbol exists TODO: error properly");
+                    self.change_node_kind(id, AstNodeKind::InternedSymbol(sym_id))
+                }
+                _ => (),
+            }
+        }
+
         Ok(())
+    }
+
+    fn create_values(&mut self) -> Result<(), FrontEndError> {
+        Ok(())
+    }
+
+
+    fn change_node_kind(&mut self, id: AstNodeId, new_kind: AstNodeKind) {
+        let mut sym = self.ast.tree.get_mut(id).unwrap();
+        sym.value().kind = new_kind
+    }
+    fn get_source_file(&self) -> &SourceFile {
+        self.ast.get_source_file()
+    }
+
+    fn get_source_text(&self, r: &std::ops::Range<usize>) -> &str {
+        self.ast.get_source_file().get_text(r).unwrap()
     }
 }

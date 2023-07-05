@@ -55,11 +55,11 @@ impl FrontEndError {
 }
 
 impl FrontEndError {
-    pub fn new<E: Into<FrontEndErrorKind>>( e: E, pos: std::ops::Range<usize> ) -> Self {
+    pub fn new<E: Into<FrontEndErrorKind>>( e: E, pos: &std::ops::Range<usize> ) -> Self {
         Self {
             kind: e.into(),
             severity: Severity::Error,
-            pos
+            pos : pos.clone(),
         }
     }
 }

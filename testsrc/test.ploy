@@ -1,1 +1,2 @@
-(fn ([a] ()))
+(def ^:macro a 10)
+(fn ([^:macro a ] ()))

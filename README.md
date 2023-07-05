@@ -8,6 +8,8 @@ A schemey lisp
     * Results
 * Points to calling function record
     * Not sure why? Exceptions?
+* Need to keep in mind dynamic scoping vs lexical scoping
+    * Enclosing scopes are different
 
 # Register Allocation Notes
 * Liveness analysis

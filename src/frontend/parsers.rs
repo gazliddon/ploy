@@ -83,9 +83,57 @@ fn parse_string(input: Span) -> PResult<ParseNode> {
     parse_kind(input, TokenKind::QuotedString, AstNodeKind::QuotedString)
 }
 
-fn parse_aplication(input: Span) -> PResult<ParseNode> {
+enum Type {
+    Bool,
+    Float,
+    Integer,
+    String,
+    User(String),
+    Char,
+    Lambda,
+}
+
+fn parse_lambda_type(_input: Span) -> PResult<Type> {
+    panic!()
+}
+
+fn parse_simple_type(input: Span) -> PResult<Type> {
+    let (rest, matched) = tag(TokenKind::Identifier)(input)?;
+    let text = matched.get(0).unwrap().extra.get_text();
+
+    let ta = match text {
+        "bool" => Type::Bool,
+        "float" => Type::Float,
+        "int" => Type::Integer,
+        "string" => Type::String,
+        "char" => Type::Char,
+        _ => {
+            return Err(FrontEndError::from_error_kind(
+                input,
+                ParseErrorKind::NoMatch,
+                Severity::Error,
+            ))
+        }
+    };
+    Ok((rest, ta))
+}
+
+fn parse_unknown_type(input: Span) -> PResult<Type> {
+    let (rest, matched) = tag(TokenKind::Identifier)(input)?;
+    let text = matched.get(0).unwrap().extra.get_text();
+    Ok((rest, Type::User(text.to_owned())))
+}
+
+fn parse_type_annotation(input: Span) -> PResult<Type> {
+    use TokenKind::*;
+    let (rest, _) = tag(Colon)(input)?;
+    let (rest, matched) = alt((parse_simple_type, parse_unknown_type))(rest)?;
+    Ok((rest, matched))
+}
+
+fn parse_application(input: Span) -> PResult<ParseNode> {
     let body = pair(
-        alt((parse_symbol, parse_aplication, parse_builtin)),
+        alt((parse_symbol, parse_application, parse_builtin)),
         many0(parse_atom),
     );
 
@@ -153,16 +201,15 @@ pub fn parse_define(input: Span) -> PResult<ParseNode> {
 
     let body = preceded(
         alt((txt_tag("define"), txt_tag("def"))),
-        tuple((opt(parse_meta), parse_arg, parse_atom)),
+        tuple((parse_arg, parse_atom)),
     );
 
-    let (rest, (meta, sym, val)) = parse_bracketed(body)(input)?;
+    let (rest, (sym, val)) = parse_bracketed(body)(input)?;
 
     Ok((
         rest,
         ParseNode::builder(Define, input, rest)
             .children([sym, val])
-            .meta_opt(meta)
             .into(),
     ))
 }
@@ -210,6 +257,7 @@ fn parse_let_args(input: Span) -> PResult<ParseNode> {
 fn parse_forms(input: Span) -> PResult<Vec<ParseNode>> {
     many0(parse_atom)(input)
 }
+
 fn wrap_err(
     err: SyntaxErrorKind,
     mut p: impl FnMut(Span) -> Result<(Span, ParseNode), FrontEndError>,
@@ -314,10 +362,13 @@ fn parse_simple<'a>(input: Span<'a>, txt: &'a str, kind: AstNodeKind) -> PResult
 ////////////////////////////////////////////////////////////////////////////////
 pub fn parse_arg(input: Span) -> PResult<ParseNode> {
     use {AstNodeKind::Arg, SyntaxErrorKind::*, TokenKind::*};
+    let (rest, meta) = opt(parse_meta)(input)?;
 
-    wrap_err(InvalidArgument, |i| {
+    let (rest, matched) = wrap_err(InvalidArgument, |i| {
         parse_kind(i, [Identifier, FqnIdentifier], Arg)
-    })(input)
+    })(rest)?;
+
+    Ok((rest, matched.change_meta(meta)))
 }
 
 pub fn parse_args(input: Span) -> PResult<ParseNode> {
@@ -354,7 +405,7 @@ pub fn parse_single_lambda_body(input: Span) -> PResult<Vec<ParseNode>> {
 }
 
 pub fn parse_block(input: Span) -> PResult<ParseNode> {
-    let (rest,forms) = parse_multi_lambda_body(input)?;
+    let (rest, forms) = parse_multi_lambda_body(input)?;
 
     let node = ParseNode::builder(AstNodeKind::Block, input, rest)
         .children(forms)
@@ -365,16 +416,12 @@ pub fn parse_block(input: Span) -> PResult<ParseNode> {
 pub fn parse_lambda(input: Span) -> PResult<ParseNode> {
     use TokenKind::*;
 
-    let (rest,_) = tag(OpenBracket)(input)?;
-    let (rest, _) = txt_tag("fn")(rest)?;
-    let (rest, lambdas) = alt((parse_single_lambda_body,parse_multi_lambda_body ))(rest)?;
-    let (rest,_) = tag(CloseBracket)(rest)?;
+    let body = alt((parse_single_lambda_body, parse_multi_lambda_body));
 
-
-    // let (rest, lambdas) = parse_bracketed(preceded(
-    //     txt_tag("fn"),
-    //     alt((parse_multi_lambda_body, parse_single_lambda_body)),
-    // ))(input)?;
+    let (rest, lambdas) = preceded(
+        pair(tag(OpenBracket), txt_tag("fn")),
+        cut(succeeded(body, tag(CloseBracket))),
+    )(input)?;
 
     let node = ParseNode::builder(AstNodeKind::Lambda, input, rest)
         .children(lambdas)
@@ -473,7 +520,7 @@ fn parse_atom(input: Span) -> PResult<ParseNode> {
         parse_builtin,
         parse_symbol,
         parse_specials,
-        parse_aplication,
+        parse_application,
         parse_array,
         parse_list,
         parse_quoted,

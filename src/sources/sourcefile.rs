@@ -4,7 +4,7 @@ use super::prelude::*;
 #[derive(Clone, Debug)]
 pub struct SourceFile {
     pub origin: SourceOrigin,
-    pub text: String,
+    text: String,
     lines: Lines,
 }
 
@@ -15,6 +15,10 @@ impl SourceFile {
             text,
             origin,
         }
+    }
+
+    pub fn text(&self) -> &str {
+        &self.text
     }
 
     pub fn get_location(&self, _offset: usize) -> Option<Location> {
@@ -30,8 +34,8 @@ impl SourceFile {
         r.start < len && r.end < len
     }
 
-    pub fn get_text(&self, r: std::ops::Range<usize>) -> Option<&str> {
-        self.in_bounds(&r).then_some(&self.text[r])
+    pub fn get_text(&self, r: &std::ops::Range<usize>) -> Option<&str> {
+        self.in_bounds(&r).then_some(&self.text[r.clone()])
     }
 
     pub fn get_file_span_from_offset(&self, offset: usize) -> Option<FileSpan> { 
