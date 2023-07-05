@@ -8,6 +8,7 @@ mod ploytokens;
 mod span;
 mod syntax;
 mod tokens;
+mod types;
 
 mod prelude {
     pub use super::{
@@ -22,6 +23,7 @@ mod prelude {
     pub use super::ploytokens::Token;
     pub use super::span::Span;
     pub use super::tokens::{ParseText, TokenKind};
+    pub use super::types::*;
 }
 
 pub use prelude::*;

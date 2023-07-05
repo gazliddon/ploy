@@ -2,16 +2,23 @@
 
 use std::path::Path;
 
+use anyhow::Context;
 use logos::{internal::CallbackResult, Source};
-use ploy::{sources::SourceFile, *, error::to_full_error};
-
+use ploy::{sources::SourceFile, *, error::to_full_error, opts::Opts};
 use frontend::*;
 use parsers::*;
 use unraveler::Parser;
 use ploy::error::PloyErrorKind;
 
-pub fn load_text<P: AsRef<Path>>(p : P) -> String {
-    panic!()
+pub fn compile_module<P: AsRef<Path>>(p : P) -> Result<Module,PloyErrorKind>{
+    let mut opts = Opts::default();
+    opts.project_file = p.as_ref().into();
+    let mut loader = sources::SourceLoader::new();
+    let id = loader.load_file(&opts.project_file).context("Can't load source file")?;
+    let sf = loader.get_source_file(id).context("Can't get source file")?;
+    let job = ModuleJob::new(&opts,sf);
+    let module : Module = job.try_into()?;
+    Ok(module)
 }
 
 pub fn as_ast<P>(text: &str, mut p: P) -> Result<Ast, PloyErrorKind>

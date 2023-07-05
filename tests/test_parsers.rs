@@ -133,7 +133,8 @@ fn test_args() -> Result<(), PloyErrorKind> {
 
     let test = vec![
         ("[]", vec![]),
-        ("[a b c]", vec![Arg, Arg, Arg]),
+        ("[^:meta a b c]", vec![Arg, Arg, Arg]),
+        ("[a : string b c]", vec![Arg, Arg, Arg]),
         ("[z]", vec![Arg]),
     ];
 

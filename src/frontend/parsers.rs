@@ -7,7 +7,6 @@ use unraveler::{
 };
 
 use crate::frontend::syntax::SyntaxErrorKind;
-
 use super::prelude::*;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -81,16 +80,6 @@ fn match_text<'a>(t: &'a Token<'a>, txt: &str) -> bool {
 
 fn parse_string(input: Span) -> PResult<ParseNode> {
     parse_kind(input, TokenKind::QuotedString, AstNodeKind::QuotedString)
-}
-
-enum Type {
-    Bool,
-    Float,
-    Integer,
-    String,
-    User(String),
-    Char,
-    Lambda,
 }
 
 fn parse_lambda_type(_input: Span) -> PResult<Type> {
@@ -368,6 +357,7 @@ pub fn parse_arg(input: Span) -> PResult<ParseNode> {
         parse_kind(i, [Identifier, FqnIdentifier], Arg)
     })(rest)?;
 
+    let (rest,_opt) = opt(parse_type_annotation)(rest)?;
     Ok((rest, matched.change_meta(meta)))
 }
 
@@ -422,6 +412,8 @@ pub fn parse_lambda(input: Span) -> PResult<ParseNode> {
         pair(tag(OpenBracket), txt_tag("fn")),
         cut(succeeded(body, tag(CloseBracket))),
     )(input)?;
+
+    let (rest,_ret_type) = opt(parse_type_annotation)(rest)?;
 
     let node = ParseNode::builder(AstNodeKind::Lambda, input, rest)
         .children(lambdas)

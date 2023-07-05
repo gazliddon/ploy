@@ -1,2 +1,4 @@
-(def ^:macro a 10)
-(fn ([^:macro a ] ()))
+(def a 10)
+
+(fn [a : u8] "hello") 
+
