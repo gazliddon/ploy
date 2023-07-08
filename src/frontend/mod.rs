@@ -70,11 +70,10 @@ impl TryFrom<ModuleJob> for Module {
 
     fn try_from(value: ModuleJob) -> Result<Self, Self::Error> {
 
-        let from = value.clone();
         let mut syms = SymbolTree::new();
 
         let tokes = tokenize(&value.source);
-        let mut ast = to_ast(&tokes, value.source.clone())?;
+        let mut ast = to_ast(&tokes, value.source.clone()).map_err(|e| to_full_error(e, &value.source))?;
 
         let mut ast_lowerer = AstLowerer {
             syms: &mut syms,
@@ -84,7 +83,7 @@ impl TryFrom<ModuleJob> for Module {
         ast_lowerer.lower()
             .map_err(|e| to_full_error(e, &value.source))?;
 
-        let ret = Self { syms, ast, from };
+        let ret = Self { syms, ast, from: value.clone(), };
 
         Ok(ret)
     }

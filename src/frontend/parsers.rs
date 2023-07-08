@@ -6,8 +6,8 @@ use unraveler::{
     tag, tuple, until, wrapped_cut, Collection, Item, ParseError, ParseErrorKind, Parser, Severity,
 };
 
-use crate::frontend::syntax::SyntaxErrorKind;
 use super::prelude::*;
+use crate::frontend::syntax::SyntaxErrorKind;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Helpers
@@ -92,10 +92,12 @@ fn parse_simple_type(input: Span) -> PResult<Type> {
 
     let ta = match text {
         "bool" => Type::Bool,
-        "float" => Type::Float,
+        "f32" => Type::F32,
+        "f64" => Type::F64,
         "int" => Type::Integer,
         "string" => Type::String,
         "char" => Type::Char,
+        "struct" => Type::Struct,
         _ => {
             return Err(FrontEndError::from_error_kind(
                 input,
@@ -120,13 +122,24 @@ fn parse_type_annotation(input: Span) -> PResult<Type> {
     Ok((rest, matched))
 }
 
-fn parse_application(input: Span) -> PResult<ParseNode> {
-    let body = pair(
-        alt((parse_symbol, parse_application, parse_builtin)),
-        many0(parse_atom),
-    );
+fn parse_application_head(input: Span) -> PResult<ParseNode> {
+    let (rest, matched) = alt((
+        parse_keyword,
+        parse_symbol,
+        parse_application,
+        parse_builtin,
+    ))(input)
+    .map_err(|mut e| { e.kind = SyntaxErrorKind::IllegalApplication.into(); e })?;
 
-    let (rest, (app, forms)) = parse_bracketed(body)(input)?;
+    Ok((rest, matched))
+}
+
+fn parse_application(input: Span) -> PResult<ParseNode> {
+    let body = pair(parse_application_head, many0(parse_atom));
+
+    let parsed = parse_bracketed(cut(body))(input);
+
+    let (rest, (app, forms)) = parsed?;
 
     let node = ParseNode::builder(AstNodeKind::Application, input, rest)
         .child(app)
@@ -357,7 +370,7 @@ pub fn parse_arg(input: Span) -> PResult<ParseNode> {
         parse_kind(i, [Identifier, FqnIdentifier], Arg)
     })(rest)?;
 
-    let (rest,_opt) = opt(parse_type_annotation)(rest)?;
+    let (rest, _opt) = opt(parse_type_annotation)(rest)?;
     Ok((rest, matched.change_meta(meta)))
 }
 
@@ -410,10 +423,10 @@ pub fn parse_lambda(input: Span) -> PResult<ParseNode> {
 
     let (rest, lambdas) = preceded(
         pair(tag(OpenBracket), txt_tag("fn")),
-        cut(succeeded(body, tag(CloseBracket))),
+        succeeded(cut(body), cut(tag(CloseBracket))),
     )(input)?;
 
-    let (rest,_ret_type) = opt(parse_type_annotation)(rest)?;
+    let (rest, _ret_type) = opt(parse_type_annotation)(rest)?;
 
     let node = ParseNode::builder(AstNodeKind::Lambda, input, rest)
         .children(lambdas)
@@ -503,7 +516,8 @@ pub fn parse_let(input: Span) -> PResult<ParseNode> {
 }
 
 fn parse_atom(input: Span) -> PResult<ParseNode> {
-    alt((
+    let parsed = alt((
+        parse_specials,
         parse_null,
         parse_keyword,
         parse_number,
@@ -511,13 +525,14 @@ fn parse_atom(input: Span) -> PResult<ParseNode> {
         parse_bool,
         parse_builtin,
         parse_symbol,
-        parse_specials,
         parse_application,
         parse_array,
         parse_list,
         parse_quoted,
         parse_map,
-    ))(input)
+    ))(input);
+
+    parsed
 }
 
 pub fn parse_program(input: Span) -> PResult<ParseNode> {

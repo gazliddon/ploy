@@ -9,6 +9,7 @@ use unraveler::{
 
 use super::{ploytokens::SlimToken, prelude::*};
 use crate::{
+    frontend::syntax::SyntaxErrorKind,
     sources::{FileSpan, SourceFile},
     symbols::{ScopeId, SymbolScopeId},
 };
@@ -203,13 +204,14 @@ pub fn to_ast(tokes: &[Token], source_file: SourceFile) -> Result<Ast, FrontEndE
     let (rest, matched) = super::parsers::parse_program(tokens)?;
 
     if !rest.is_empty() {
-        println!("{:?}", rest.as_slice()[0].location);
-        panic!("Didn't consume all input");
+        let err = rest.as_slice()[0].location;
+        let syntax = SyntaxErrorKind::Unexpected;
+        let err = FrontEndError::new(syntax, &err.as_range());
+        Err(err)
+    } else {
+        let ast = Ast::new(matched, tokes, source_file);
+        Ok(ast)
     }
-
-    let ast = Ast::new(matched, tokes, source_file);
-
-    Ok(ast)
 }
 
 mod test {

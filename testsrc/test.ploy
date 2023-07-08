@@ -1,4 +1,8 @@
-(def a 10)
+(def v3 1)
+(def add (fn [a b]
+            (let [x (1 (:hello a) 10)
+                  y 1
+                  z 3]
+                (v3 a y z))))
 
-(fn [a : u8] "hello") 
 

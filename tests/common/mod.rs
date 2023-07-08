@@ -17,7 +17,7 @@ pub fn compile_module<P: AsRef<Path>>(p : P) -> Result<Module,PloyErrorKind>{
     let id = loader.load_file(&opts.project_file).context("Can't load source file")?;
     let sf = loader.get_source_file(id).context("Can't get source file")?;
     let job = ModuleJob::new(&opts,sf);
-    let module : Module = job.try_into()?;
+    let module =  Module::try_from(job)?;
     Ok(module)
 }
 

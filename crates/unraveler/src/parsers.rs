@@ -25,7 +25,13 @@ where
                     out.push(matched)
                 }
 
-                Err(_) => break,
+                Err(e) => {
+                    if e.is_fatal() {
+                        return Err(e);
+                    } else {
+                        break;
+                    }
+                }
             }
         }
 
@@ -43,12 +49,16 @@ where
     I: Collection + Clone + Copy,
     E: ParseError<I>,
 {
-    move |mut i : I| {
+    move |mut i: I| {
         let mut out = vec![];
 
         loop {
             if i.length() == 0 {
-                return Err(E::from_error_kind(i, ParseErrorKind::UntilNotMatched, Severity::Error))
+                return Err(E::from_error_kind(
+                    i,
+                    ParseErrorKind::UntilNotMatched,
+                    Severity::Error,
+                ));
             }
 
             // Have we hit the predicate?
@@ -56,6 +66,11 @@ where
 
             match r {
                 Ok((rest, _)) => return Ok((i, out)),
+                Err(e) => {
+                    if e.is_fatal() {
+                        return Err(e)
+                    }
+                }
                 _ => (),
             }
 

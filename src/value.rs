@@ -11,9 +11,26 @@ pub enum Value {
     Signed(i64),
     Unsigned(u64),
     Text(Arc<str>),
-    Type,
+    Type(Box<TypeInfo>),
     Lambda(AstNodeId),
     KeyWord,
+}
+
+
+#[derive(Clone,Debug, PartialEq)]
+pub enum TypeKind {
+    Struct,
+    Enum,
+}
+
+pub type TypeId = u64;
+
+#[derive(Clone,Debug, PartialEq)]
+pub struct TypeInfo {
+    id: TypeId,
+    name: String,
+    definition: AstNodeId,
+    kind: TypeKind,
 }
 
 pub type OperationError<V> = Result<V, OperationErrorKind>;

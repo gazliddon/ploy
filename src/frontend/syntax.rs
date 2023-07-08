@@ -35,6 +35,11 @@ pub enum SyntaxErrorKind {
     Expected(String),
     #[error("Undefined symbol {0}")]
     UndefinedSymbol(String),
+    #[error("Unexpected input")]
+    Unexpected,
+    
+    #[error("This isn't something you can call")]
+    IllegalApplication
 }
 
 fn get_str<'a>(x: Token<'a>, txt: &'a str) -> &'a str {
