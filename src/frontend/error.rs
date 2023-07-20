@@ -1,4 +1,4 @@
-use super::prelude::*;
+use super::{prelude::*, semantics::SemanticErrorKind};
 use super::span::get_text_range;
 use super::syntax::SyntaxErrorKind;
 use crate::sources::{FileSpan, SearchPathsError};
@@ -14,6 +14,9 @@ pub enum FrontEndErrorKind {
     SyntaxError(#[from] SyntaxErrorKind),
     #[error("Parsing: {0}")]
     ParseError(#[from] ParseErrorKind),
+
+    #[error(transparent)]
+    SemanticError(SemanticErrorKind),
     #[error(transparent)]
     SearchsPathError(SearchPathsError),
     #[error("Misc: {0}")]

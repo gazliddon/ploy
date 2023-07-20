@@ -1,3 +1,4 @@
+//!Crate for handling hierachical symbol tables
 #![allow(dead_code)]
 mod scopedname;
 mod symboltable;
