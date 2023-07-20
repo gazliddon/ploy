@@ -37,9 +37,9 @@ pub enum SyntaxErrorKind {
     UndefinedSymbol(String),
     #[error("Unexpected input")]
     Unexpected,
-    
+
     #[error("This isn't something you can call")]
-    IllegalApplication
+    IllegalApplication,
 }
 
 fn get_str<'a>(x: Token<'a>, txt: &'a str) -> &'a str {
@@ -55,6 +55,7 @@ fn to_kinds(x: &[Token], txt: &str) -> Vec<(TokenKind, String)> {
 pub struct AstLowerer<'a> {
     pub syms: &'a mut SymbolTree,
     pub ast: &'a mut super::ast::Ast,
+    pub id_to_scope: HashMap<AstNodeId, ScopeId>,
 }
 
 fn num_of_children(n: AstNodeRef) -> usize {
@@ -90,7 +91,17 @@ impl<'a> AstLowerer<'a> {
         self.intern_symbol_assignments()?;
         self.intern_refs()?;
         self.create_values()?;
+        self.make_node_to_scope_table();
         Ok(())
+    }
+
+    fn make_node_to_scope_table(&mut self) {
+        let nodes = self
+            .get_node_values_with_scope(self.ast.tree.root().id(), self.syms.get_root_scope_id());
+
+        for (id, _, scope) in nodes.into_iter() {
+            self.id_to_scope.insert(id, scope);
+        }
     }
 
     fn mk_error(&self, _node: AstNodeRef, _err: SyntaxErrorKind) -> SyntaxErrorKind {
@@ -131,7 +142,6 @@ impl<'a> AstLowerer<'a> {
         }
     }
 
-
     /// Add scope setting, unsetting for all forms that need it
     fn add_scopes(&mut self) -> Result<(), FrontEndError> {
         let id = self.ast.tree.root().id();
@@ -139,7 +149,6 @@ impl<'a> AstLowerer<'a> {
         self.scope_node_recursive(id, current_scope);
         Ok(())
     }
-
 
     fn intern_refs(&mut self) -> Result<(), FrontEndError> {
         let nodes = self
@@ -179,7 +188,6 @@ impl<'a> AstLowerer<'a> {
         }
         ret
     }
-
     /// Lower defines to include the symbol id
     fn lower_defines(
         &mut self,
@@ -190,22 +198,23 @@ impl<'a> AstLowerer<'a> {
             self.get_node_values_with_scope(self.ast.tree.root().id(), syms.get_root_scope_id());
 
         for (id, value, _) in nodes.into_iter() {
-            match &value.kind {
-                AstNodeKind::Define => {
-                    let n = self.ast.tree.get(id).unwrap();
-                    let sym = n.first_child().unwrap();
-                    if let AstNodeKind::InternedSymbol(sym_id) = sym.value().kind {
-                        self.ast.tree.get_mut(sym.id()).unwrap().detach();
-                        self.change_node_kind(id, AstNodeKind::DefineSymbol(sym_id))
-                    } else {
-                        panic!("Whoops!");
-                    }
+            if value.kind == AstNodeKind::Define {
+                let n = self.ast.tree.get(id).unwrap();
+                let sym = n.first_child().unwrap();
+                if let AstNodeKind::InternedSymbol(sym_id) = sym.value().kind {
+                    self.ast.tree.get_mut(sym.id()).unwrap().detach();
+                    self.change_node_kind(id, AstNodeKind::AssignSymbol(sym_id));
+                } else {
+                    panic!("Whoops!");
                 }
-                _ => (),
             }
         }
 
         Ok(())
+    }
+
+    fn detach_node(&mut self, id: AstNodeId) {
+        self.ast.tree.get_mut(id).unwrap().detach();
     }
 
     /// Change all symbol defs, lambdas and defines, to symbol ids
@@ -214,16 +223,13 @@ impl<'a> AstLowerer<'a> {
             .get_node_values_with_scope(self.ast.tree.root().id(), self.syms.get_root_scope_id());
 
         for (id, value, current_scope) in nodes.into_iter() {
-            match &value.kind {
-                AstNodeKind::Arg => {
-                    let name = self.get_source_text(&value.text_range).to_owned();
-                    let sym_id = self
-                        .syms
-                        .create_symbol_in_scope(current_scope, &name)
-                        .expect("Symbol exists TODO: error properly");
-                    self.change_node_kind(id, AstNodeKind::InternedSymbol(sym_id))
-                }
-                _ => (),
+            if value.kind == AstNodeKind::Arg {
+                let name = self.get_source_text(&value.text_range).to_owned();
+                let sym_id = self
+                    .syms
+                    .create_symbol_in_scope(current_scope, &name)
+                    .expect("Symbol exists TODO: error properly");
+                self.change_node_kind(id, AstNodeKind::InternedSymbol(sym_id))
             }
         }
 
@@ -233,7 +239,6 @@ impl<'a> AstLowerer<'a> {
     fn create_values(&mut self) -> Result<(), FrontEndError> {
         Ok(())
     }
-
 
     fn change_node_kind(&mut self, id: AstNodeId, new_kind: AstNodeKind) {
         let mut sym = self.ast.tree.get_mut(id).unwrap();

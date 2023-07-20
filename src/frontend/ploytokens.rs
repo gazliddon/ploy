@@ -68,7 +68,7 @@ fn to_tokens(source_file: &SourceFile) -> Vec<Token> {
         .map(|(kind, r)| Token {
             kind,
             location: TextSpan::new(r.start, r.len()),
-                extra: ParseText::new(source_file.text(),r.clone()),
+                extra: ParseText::new(source_file.text(),r),
         })
         .collect()
 }

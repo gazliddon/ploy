@@ -516,7 +516,7 @@ pub fn parse_let(input: Span) -> PResult<ParseNode> {
 }
 
 fn parse_atom(input: Span) -> PResult<ParseNode> {
-    let parsed = alt((
+    alt((
         parse_specials,
         parse_null,
         parse_keyword,
@@ -530,9 +530,8 @@ fn parse_atom(input: Span) -> PResult<ParseNode> {
         parse_list,
         parse_quoted,
         parse_map,
-    ))(input);
+    ))(input)
 
-    parsed
 }
 
 pub fn parse_program(input: Span) -> PResult<ParseNode> {

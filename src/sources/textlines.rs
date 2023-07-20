@@ -8,13 +8,12 @@ pub struct Lines {
 fn compare_loc(offset: usize, x: &std::ops::Range<usize>) -> std::cmp::Ordering {
     if x.contains(&offset) {
         std::cmp::Ordering::Equal
+    } else if offset < x.start {
+        std::cmp::Ordering::Greater
     } else {
-        if offset < x.start {
-            std::cmp::Ordering::Greater
-        } else {
-            std::cmp::Ordering::Less
-        }
+        std::cmp::Ordering::Less
     }
+
 }
 
 impl Lines {

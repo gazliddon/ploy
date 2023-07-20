@@ -23,7 +23,6 @@ pub struct Worker {
     status: Mutex<JobStatus>,
     q: Mutex<VecDeque<Box<dyn JobTrait>>>,
     please_die: AtomicBool,
-
     glob_jobs: Arc<Mutex<Vec<Box<dyn JobTrait>>>>,
     workers: Arc<Mutex<Vec<Worker>>>,
 }
@@ -148,6 +147,32 @@ pub struct Pool<const N: usize> {
     pool_data: Arc<Mutex<PoolData>>,
 }
 
+impl<const N: usize> Default for Pool<N> {
+    fn default() -> Self {
+
+        let pool_data = PoolData {
+            jobs: vec![],
+            workers: vec![],
+        };
+
+        let pool_data = Arc::new(Mutex::new(pool_data));
+
+        let jobs = Default::default();
+        let workers = Mutex::new(Vec::with_capacity(N)).into();
+
+        let ret = Self {
+            jobs,
+            workers,
+            pool_data,
+        };
+
+        for _ in 0..N {
+            ret.add_worker_thread()
+        }
+        ret
+    }
+}
+
 impl<const N: usize> Pool<N> {
     pub fn add<J: JobTrait + 'static>(&mut self, job: J) {
         let mut jobs = self.jobs.lock().unwrap();
@@ -221,28 +246,10 @@ impl<const N: usize> Pool<N> {
             _w[_idx].run()
         });
     }
+
+
     pub fn new() -> Self {
-
-        let pool_data = PoolData {
-            jobs: vec![],
-            workers: vec![],
-        };
-
-        let pool_data = Arc::new(Mutex::new(pool_data));
-
-        let jobs = Default::default();
-        let workers = Mutex::new(Vec::with_capacity(N)).into();
-
-        let ret = Self {
-            jobs,
-            workers,
-            pool_data,
-        };
-
-        for _ in 0..N {
-            ret.add_worker_thread()
-        }
-        ret
+        Default::default()
     }
 }
 

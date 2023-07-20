@@ -31,7 +31,7 @@ pub enum AstNodeKind {
     KeyWordPair,
     Symbol,
     InternedSymbol(SymbolScopeId),
-    DefineSymbol(SymbolScopeId),
+    AssignSymbol(SymbolScopeId),
     Scope,
     KeyWord,
     Define,
@@ -53,6 +53,8 @@ pub enum AstNodeKind {
     Block,
     #[default]
     Nothing,
+    True,
+    False,
 }
 
 impl AstNodeKind {
@@ -80,11 +82,9 @@ pub struct AstNode {
 pub fn get_text_range(tokes_range: &[SlimToken]) -> std::ops::Range<usize> {
     let start_t = &tokes_range.first().unwrap().location.as_range();
     let end_t = &tokes_range.last().unwrap().location.as_range();
-
     let start = start_t.start;
     let end = end_t.start + end_t.len();
-    let text_range = start..end;
-    text_range
+    start..end
 }
 
 impl AstNode {
@@ -159,9 +159,10 @@ impl Ast {
             id
         };
 
-        if let Some(_) = parse_node.meta_data {
+        if parse_node.meta_data.is_some() {
             let _ = self.meta_data.insert(id, MetaData { node: id });
         }
+
 
         for k in parse_node.children.into_iter() {
             self.add_node(Some(id), k)
@@ -172,8 +173,8 @@ impl Ast {
         let tokens = tokes
             .iter()
             .map(|t| SlimToken {
-                kind: t.kind.clone(),
-                location: t.location.clone(),
+                kind: t.kind,
+                location: t.location,
                 extra: source_file
                     .get_file_span(t.location.start, t.location.len)
                     .expect("Invalid offset"),

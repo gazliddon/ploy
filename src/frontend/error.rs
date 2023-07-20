@@ -21,7 +21,7 @@ pub enum FrontEndErrorKind {
 }
 
 #[derive(Clone, Debug)]
-enum ErrorPos {
+pub enum ErrorPos {
     TokenRange(std::ops::Range<usize>),
     FileSpan(FileSpan),
 }

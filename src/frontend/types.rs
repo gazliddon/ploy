@@ -1,4 +1,4 @@
-#[derive(Default)]
+#[derive(Default, PartialEq, Clone, Debug   )]
 pub enum Type {
     #[default]
     ToInfer,
@@ -11,4 +11,7 @@ pub enum Type {
     Char,
     Struct,
     Lambda,
+    Void,
 }
+
+

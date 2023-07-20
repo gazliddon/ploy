@@ -15,8 +15,8 @@ pub struct SourceLoader {
     searcher: PathSearcher,
 }
 
-impl SourceLoader {
-    pub fn new() -> Self {
+impl Default for SourceLoader {
+    fn default() -> Self {
         let mut ret = Self {
             name_to_id: Default::default(),
             id_to_file: Default::default(),
@@ -26,6 +26,12 @@ impl SourceLoader {
 
         ret.searcher.add_path(".").unwrap();
         ret
+    }
+}
+
+impl SourceLoader {
+    pub fn new() -> Self {
+        Default::default()
     }
 
     pub fn resolve_file_path<P: AsRef<Path>>(&self, p: P) -> Result<PathBuf, SourcesError> {
@@ -41,7 +47,7 @@ impl SourceLoader {
         } else {
             let p = p.as_ref().to_path_buf();
             let source = SourceFile::new(text, SourceOrigin::File(id, p.clone()));
-            self.name_to_id.insert(p.clone(), id);
+            self.name_to_id.insert(p, id);
             self.id_to_file.insert(id, source);
 
             self.next_id += 1;

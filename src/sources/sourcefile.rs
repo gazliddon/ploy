@@ -35,7 +35,7 @@ impl SourceFile {
     }
 
     pub fn get_text(&self, r: &std::ops::Range<usize>) -> Option<&str> {
-        self.in_bounds(&r).then_some(&self.text[r.clone()])
+        self.in_bounds(r).then_some(&self.text[r.clone()])
     }
 
     pub fn get_file_span_from_offset(&self, offset: usize) -> Option<FileSpan> { 
@@ -81,7 +81,7 @@ impl SourceLoader {
 
         let p = p.as_ref().to_path_buf();
         let source = SourceFile::new(text, SourceOrigin::File(id, p.clone()));
-        self.name_to_id.insert(p.clone(), id);
+        self.name_to_id.insert(p, id);
         self.id_to_file.insert(id, source);
 
         self.next_id += 1;

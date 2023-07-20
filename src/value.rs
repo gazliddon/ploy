@@ -16,11 +16,20 @@ pub enum Value {
     KeyWord,
 }
 
-
 #[derive(Clone,Debug, PartialEq)]
 pub enum TypeKind {
     Struct,
     Enum,
+    Unbound,
+    Null,
+    Macro,
+    Float,
+    Signed,
+    Unsigned,
+    Text,
+    Type(Box<TypeInfo>),
+    Lambda,
+    KeyWord,
 }
 
 pub type TypeId = u64;

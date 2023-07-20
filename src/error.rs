@@ -1,3 +1,5 @@
+use unraveler::Severity;
+
 use crate::cli::CliErrorKind;
 use crate::frontend::FrontEndError;
 use crate::sources::{SourcesError, FileSpan, SourceFile};
@@ -21,7 +23,7 @@ pub enum PloyErrorKind {
 impl std::fmt::Debug for PloyErrorKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Other(e) => write!(f,"{}", e.to_string()),
+            Self::Other(e) => write!(f,"{}", e),
             _ => write!(f,"{}",self)
         }
     }
@@ -38,6 +40,34 @@ pub fn to_full_error(e: FrontEndError, source_file : &SourceFile) -> PloyErrorKi
     let err = anyhow::anyhow!(text);
     PloyErrorKind::Other(err)
 }
+
+#[derive(Clone)]
+struct ErrorStruct<K : Clone> {
+    pub kind : K,
+    pub severity: Severity,
+    pub pos: std::ops::Range<usize>,
+}
+
+impl<K: Clone> ErrorStruct<K> {
+    pub fn set_kind(self, kind: K) -> Self {
+        Self {
+            kind: kind.into(),
+            ..self
+        }
+    }
+
+    pub fn new( e: K, pos: &std::ops::Range<usize> ) -> Self {
+        Self {
+            kind: e.into(),
+            severity: Severity::Error,
+            pos : pos.clone(),
+        }
+    }
+}
+
+use unraveler::{ParseError, ParseErrorKind, };
+use crate::frontend::{ Span, get_text_range };
+
 
 
 

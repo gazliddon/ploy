@@ -15,15 +15,15 @@ pub enum SearchPathsError {
     AlreadyInSearchPath,
 }
 
+#[derive(Default)]
 pub struct PathSearcher {
     paths: Vec<PathBuf>,
 }
 
+
 impl PathSearcher {
     pub fn new()-> Self {
-        Self {
-            paths: Default::default(),
-        }
+        Default::default()
     }
 
     pub fn add_path<P: AsRef<Path>>(&mut self, p: P) -> Result<(), SearchPathsError> {

@@ -1,7 +1,7 @@
 pub type Span<'a> = unraveler::Span<'a, super::ploytokens::Token<'a>>;
 
 pub fn get_text_range(input: Span) -> std::ops::Range<usize> {
-    if input.len() == 0 {
+    if input.is_empty() {
         let r = input.get_range();
         let start = &input.get_item_at_abs_position_sat(r.start).unwrap().extra;
         let start_t = start.as_range().start;
