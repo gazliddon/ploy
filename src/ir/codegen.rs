@@ -186,7 +186,7 @@ impl<'a> CodeGen<'a> {
                 panic!()
             }
 
-            AstNodeKind::If => {
+            AstNodeKind::If(..) => {
                 let ids: ThinVec<_> = node.children().map(|n| n.id()).collect();
 
                 use super::instructions::Reg::*;
@@ -227,10 +227,10 @@ impl<'a> CodeGen<'a> {
                 Type::Bool
             }
 
-            AstNodeKind::Application => {
+            AstNodeKind::Application(..) => {
                 let n = node.first_child().unwrap();
                 match &n.value().kind {
-                    AstNodeKind::Application => {
+                    AstNodeKind::Application(..) => {
                         panic!()
                     }
 

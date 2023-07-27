@@ -1,3 +1,4 @@
+use super::ast::{ApplicationData, IfData};
 /// Checks AST for Syntax errors
 /// Does some AST lowering
 /// and other processing
@@ -6,6 +7,7 @@ use super::prelude::*;
 use crate::error::to_full_error;
 use crate::sources::SourceFile;
 use crate::symbols::{ScopeId, SymbolTree};
+use crate::value;
 
 use anyhow::Context;
 use serde::Deserialize;
@@ -91,7 +93,10 @@ impl<'a> AstLowerer<'a> {
         self.intern_symbol_assignments()?;
         self.intern_refs()?;
         self.create_values()?;
+        self.process_special_forms()?;
+
         self.make_node_to_scope_table();
+
         Ok(())
     }
 
@@ -230,6 +235,32 @@ impl<'a> AstLowerer<'a> {
                     .create_symbol_in_scope(current_scope, &name)
                     .expect("Symbol exists TODO: error properly");
                 self.change_node_kind(id, AstNodeKind::InternedSymbol(sym_id))
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Go over the special forms and wrap up the data nicely fro codegen
+    fn process_special_forms(&mut self) -> Result<(), FrontEndError> {
+        let nodes = self
+            .get_node_values_with_scope(self.ast.tree.root().id(), self.syms.get_root_scope_id());
+
+        for (id, value, _) in nodes.into_iter() {
+            if let AstNodeKind::Special(kind) = &value.kind {
+                match kind {
+                    SpecialForm::If => {
+                        let if_data = Box::new(IfData::new(&self.ast, id));
+                        self.change_node_kind(id, AstNodeKind::If(if_data));
+                    }
+
+                    SpecialForm::Application => {
+                        let app_data = Box::new(ApplicationData::new(&self.ast, id));
+                        self.change_node_kind(id, AstNodeKind::Application(app_data))
+                    }
+
+                    _ => (),
+                };
             }
         }
 

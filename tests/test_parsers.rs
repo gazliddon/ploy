@@ -3,7 +3,6 @@
 mod common;
 use common::*;
 use ploy::{sources::SourceFile, *, error::PloyErrorKind};
-
 use frontend::*;
 use parsers::*;
 use unraveler::Parser;
@@ -93,11 +92,11 @@ fn test_if() -> Result<(), PloyErrorKind> {
         ("(if a b)", vec![Symbol, Symbol]),
         ("(if :a b :a)", vec![KeyWord, Symbol, KeyWord]),
         ("(if a b 12)", vec![Symbol, Symbol, Number]),
-        ("(if a b (x a))", vec![Symbol, Symbol, Application]),
+        ("(if a b (x a))", vec![Symbol, Symbol, SpecialForm::Application.into()]),
         ("(if a b ())", vec![Symbol, Symbol, Null]),
     ];
 
-    test_parsers(parse_if, If, &test)
+    test_parsers(parse_if, SpecialForm::If, &test)
 }
 
 #[test]
@@ -105,7 +104,7 @@ fn test_let() -> Result<(), PloyErrorKind> {
     use AstNodeKind::*;
 
     let test = vec![
-        ("(let [a 10] (println a) true)", vec![LetArgs, Application, Bool]),
+        ("(let [a 10] (println a) true)", vec![LetArgs, SpecialForm::Application.into(), Bool]),
     ];
 
     test_parsers(parse_let, Let, &test)

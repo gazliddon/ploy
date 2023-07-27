@@ -22,6 +22,12 @@ impl<'a> SemanticAnalyzer<'a> {
     }
 
     pub fn analyze(&mut self) -> Result<(),FrontEndError> {
+        self.check_types()?;
+        Ok(())
+    }
+
+    pub fn check_types(&mut self) -> Result<(),FrontEndError>{
         panic!()
     }
 }
+

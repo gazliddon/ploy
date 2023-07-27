@@ -15,12 +15,13 @@ pub struct ParseNode {
 }
 
 impl ParseNode {
-    pub fn builder(kind: AstNodeKind, input: Span, rest: Span) -> NodeBuilder {
-        NodeBuilder::from_spans(kind, input, rest)
+
+    pub fn builder<K: Into<AstNodeKind>>(kind: K, input: Span, rest: Span) -> NodeBuilder {
+        NodeBuilder::from_spans(kind.into(), input, rest)
     }
 
-    pub fn change_kind(mut self, kind: AstNodeKind) -> Self {
-        self.kind = kind;
+    pub fn change_kind<K: Into<AstNodeKind>>(mut self, kind: K) -> Self {
+        self.kind = kind.into();
         self
     }
     pub fn change_meta(mut self, meta: Option<ParseNode>) -> Self {

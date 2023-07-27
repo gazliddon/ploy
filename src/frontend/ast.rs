@@ -7,22 +7,90 @@ use unraveler::{
     ParseError,
 };
 
-use super::{ploytokens::SlimToken, prelude::*};
+use super::{ploytokens::SlimToken, prelude::*, syntax::SyntaxErrorKind};
+
 use crate::{
-    frontend::syntax::SyntaxErrorKind,
     sources::{FileSpan, SourceFile},
     symbols::{ScopeId, SymbolScopeId},
 };
 
+#[derive(Clone, PartialEq, Debug)]
+pub struct IfData {
+    id: AstNodeId,
+    predicate: AstNodeId,
+    if_true: AstNodeId,
+    if_false: Option<AstNodeId>,
+}
+
+impl IfData {
+    pub fn new(ast: &Ast, id: AstNodeId) -> Self {
+        let nth = |n| ast.get_nth_kid_id(id, n);
+        let predicate = nth(0).expect("Missing predicate!");
+        let if_true = nth(1).expect("Missing true  clause!");
+        let if_false = nth(2);
+
+        Self {
+            id,
+            predicate,
+            if_true,
+            if_false,
+        }
+    }
+}
+
+#[derive(Clone, PartialEq, Debug)]
+pub struct ApplicationData {
+    id: AstNodeId,
+    func: AstNodeId,
+    args: ThinVec<AstNodeId>,
+}
+
+impl ApplicationData {
+    pub fn new(ast: &Ast, id: AstNodeId) -> Self {
+        let mut kids = ast.tree.get(id).expect("Can't find node").children();
+        let func = kids.next().unwrap().id();
+        let args = kids.map(|n| n.id()).collect();
+
+        Self {
+            id,func,args
+        }
+    }
+
+    pub fn arrity(&self) -> usize {
+        self.args.len()
+    }
+}
+
+#[derive(Clone, PartialEq, Debug)]
+pub enum SpecialForm {
+    If,
+    Application,
+    And,
+    Or,
+    Let,
+}
+
+impl Into<AstNodeKind> for SpecialForm {
+    fn into(self) -> AstNodeKind {
+        AstNodeKind::Special(self)
+    }
+}
+
 #[derive(Clone, PartialEq, Debug, Default)]
 pub enum AstNodeKind {
+    Special(SpecialForm),
+
+    If(Box<IfData>),
+    Application(Box<ApplicationData>),
+
     BuiltIn,
     Quoted,
     Program,
     Array,
     Number,
     List,
-    Application,
+
+
     Null,
     Bool,
     QuotedString,
@@ -37,7 +105,6 @@ pub enum AstNodeKind {
     Define,
     Lambda,
     LambdaBody,
-    If,
     Let,
     Cond,
     And,
@@ -60,14 +127,6 @@ pub enum AstNodeKind {
 impl AstNodeKind {
     pub fn creates_new_scope(&self) -> bool {
         matches!(self, AstNodeKind::Lambda | AstNodeKind::Let)
-    }
-
-    pub fn is_special(&self) -> bool {
-        use AstNodeKind::*;
-        matches!(
-            self,
-            Define | Lambda | If | Let | Cond | And | Or | Do | Macro
-        )
     }
 }
 
@@ -133,6 +192,19 @@ impl Ast {
         &self.source_file
     }
 
+    pub fn get_root_id(&self) -> AstNodeId {
+        self.tree.root().id()
+    }
+
+    pub fn get_nth_kid_id(&self, id: AstNodeId, n: usize) -> Option<AstNodeId> {
+        self.tree
+            .get(id)
+            .unwrap()
+            .children()
+            .nth(n)
+            .map(|node| node.id())
+    }
+
     /// Get all of the ids of this node Recursively, depth first
     fn get_rec_ids_inner(&self, id: AstNodeId, nodes: &mut Vec<AstNodeId>) {
         nodes.push(id);
@@ -163,7 +235,6 @@ impl Ast {
             let _ = self.meta_data.insert(id, MetaData { node: id });
         }
 
-
         for k in parse_node.children.into_iter() {
             self.add_node(Some(id), k)
         }
@@ -192,11 +263,6 @@ impl Ast {
 
         ret
     }
-}
-
-struct UserError {
-    error: FrontEndError,
-    loc: FileSpan,
 }
 
 pub fn to_ast(tokes: &[Token], source_file: SourceFile) -> Result<Ast, FrontEndError> {

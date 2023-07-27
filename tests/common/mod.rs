@@ -67,9 +67,9 @@ where
     Ok(())
 }
 
-pub fn test_parsers<P>(
+pub fn test_parsers<P, K : Into<AstNodeKind> + Clone>(
     p: P,
-    kind: AstNodeKind,
+    kind: K,
     data: &[(&str, Vec<AstNodeKind>)],
 ) -> Result<(), PloyErrorKind>
 where
@@ -77,7 +77,7 @@ where
 {
 
     for (text, kids_kinds) in data.iter() {
-        test_parser(p.clone(), text, kind.clone(), kids_kinds)?;
+        test_parser(p.clone(), text, kind.clone().into(), kids_kinds)?;
     }
 
     Ok(())

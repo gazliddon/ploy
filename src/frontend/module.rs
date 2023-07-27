@@ -25,7 +25,6 @@ impl ModuleJob {
     }
 }
 
-
 pub struct Module {
     pub syms: SymbolTree,
     pub ast: Ast,

@@ -140,8 +140,9 @@ fn parse_application(input: Span) -> PResult<ParseNode> {
     let parsed = parse_bracketed(cut(body))(input);
 
     let (rest, (app, forms)) = parsed?;
+    
 
-    let node = ParseNode::builder(AstNodeKind::Application, input, rest)
+    let node = ParseNode::builder(SpecialForm::Application, input, rest)
         .child(app)
         .children(forms);
     Ok((rest, node.into()))
@@ -217,7 +218,7 @@ pub fn parse_define(input: Span) -> PResult<ParseNode> {
 }
 
 pub fn parse_if(input: Span) -> PResult<ParseNode> {
-    use {AstNodeKind::If, TokenKind::*};
+    use {AstNodeKind::Special, TokenKind::*};
 
     let body = preceded(
         txt_tag("if"),
@@ -231,7 +232,8 @@ pub fn parse_if(input: Span) -> PResult<ParseNode> {
         .flatten()
         .collect();
 
-    let node = ParseNode::builder(If, input, rest).children(args);
+
+    let node = ParseNode::builder(SpecialForm::If, input, rest).children(args);
 
     Ok((rest, node.build()))
 }
