@@ -14,7 +14,7 @@ mod module;
 
 mod prelude {
     pub use super::{
-        ast::{to_ast, Ast, AstNode, AstNodeKind, SpecialForm},
+        ast::{to_ast, Ast, AstNode, AstNodeKind, ToProcessKind},
         ast::{AstNodeId, AstNodeMut, AstNodeRef},
         error::{FrontEndError, FrontEndErrorKind, PResult},
         ploytokens::tokenize,

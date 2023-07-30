@@ -11,7 +11,7 @@ use crate::frontend::syntax::SyntaxErrorKind;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Helpers
-fn parse_kind<K>(input: Span, one_of: K, node_kind: AstNodeKind) -> PResult<ParseNode>
+fn parse_kind<K, KI: Into<AstNodeKind>>(input: Span, one_of: K, node_kind: KI) -> PResult<ParseNode>
 where
     K: Collection,
     <K as Collection>::Item: PartialEq + Copy + Item,
@@ -62,7 +62,7 @@ fn parse_null(input: Span) -> PResult<ParseNode> {
 
 fn parse_symbol(input: Span) -> PResult<ParseNode> {
     use TokenKind::*;
-    parse_kind(input, [Identifier, FqnIdentifier], AstNodeKind::Symbol)
+    parse_kind(input, [Identifier, FqnIdentifier], ToProcessKind::Symbol)
 }
 
 fn parse_builtin(input: Span) -> PResult<ParseNode> {
@@ -142,7 +142,7 @@ fn parse_application(input: Span) -> PResult<ParseNode> {
     let (rest, (app, forms)) = parsed?;
     
 
-    let node = ParseNode::builder(SpecialForm::Application, input, rest)
+    let node = ParseNode::builder(ToProcessKind::Application, input, rest)
         .child(app)
         .children(forms);
     Ok((rest, node.into()))
@@ -218,7 +218,7 @@ pub fn parse_define(input: Span) -> PResult<ParseNode> {
 }
 
 pub fn parse_if(input: Span) -> PResult<ParseNode> {
-    use {AstNodeKind::Special, TokenKind::*};
+    use ToProcessKind::*;
 
     let body = preceded(
         txt_tag("if"),
@@ -233,7 +233,7 @@ pub fn parse_if(input: Span) -> PResult<ParseNode> {
         .collect();
 
 
-    let node = ParseNode::builder(SpecialForm::If, input, rest).children(args);
+    let node = ParseNode::builder(If, input, rest).children(args);
 
     Ok((rest, node.build()))
 }

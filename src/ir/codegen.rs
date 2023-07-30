@@ -234,7 +234,7 @@ impl<'a> CodeGen<'a> {
                         panic!()
                     }
 
-                    AstNodeKind::InternedSymbol(_id) => {
+                    AstNodeKind::Symbol(_id) => {
                         // assign a value to each of the params
                         //  Each param is code genned
                         //  compare the types to to type sig of the function

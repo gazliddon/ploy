@@ -62,9 +62,11 @@ fn to_tokens_kinds(source_file: &SourceFile) -> Vec<(TokenKind, std::ops::Range<
         .collect()
 }
 
+// Tokenize a source file, remove comments
 fn to_tokens(source_file: &SourceFile) -> Vec<Token> {
     to_tokens_kinds(source_file)
         .into_iter()
+        .filter(|(kind,_)| kind!=&TokenKind::Comment)
         .map(|(kind, r)| Token {
             kind,
             location: TextSpan::new(r.start, r.len()),

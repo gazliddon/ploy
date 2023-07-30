@@ -161,7 +161,7 @@ impl<'a> AstLowerer<'a> {
 
         for (id, v, current_scope) in nodes.into_iter() {
             use {SymbolResolutionBarrier::Global, SyntaxErrorKind::*};
-            if v.kind == AstNodeKind::Symbol {
+            if v.kind == AstNodeKind::ToProcess(ToProcessKind::Symbol) {
                 let r = &v.text_range;
                 let name = self.get_source_text(r);
                 let sym_id = self
@@ -169,7 +169,7 @@ impl<'a> AstLowerer<'a> {
                     .resolve_label(name, current_scope, Global)
                     .map_err(|_e| FrontEndError::new(UndefinedSymbol(name.to_owned()), r))?;
 
-                self.change_node_kind(id, AstNodeKind::InternedSymbol(sym_id))
+                self.change_node_kind(id, AstNodeKind::Symbol(sym_id))
             }
         }
 
@@ -206,7 +206,7 @@ impl<'a> AstLowerer<'a> {
             if value.kind == AstNodeKind::Define {
                 let n = self.ast.tree.get(id).unwrap();
                 let sym = n.first_child().unwrap();
-                if let AstNodeKind::InternedSymbol(sym_id) = sym.value().kind {
+                if let AstNodeKind::Symbol(sym_id) = sym.value().kind {
                     self.ast.tree.get_mut(sym.id()).unwrap().detach();
                     self.change_node_kind(id, AstNodeKind::AssignSymbol(sym_id));
                 } else {
@@ -234,7 +234,7 @@ impl<'a> AstLowerer<'a> {
                     .syms
                     .create_symbol_in_scope(current_scope, &name)
                     .expect("Symbol exists TODO: error properly");
-                self.change_node_kind(id, AstNodeKind::InternedSymbol(sym_id))
+                self.change_node_kind(id, AstNodeKind::Symbol(sym_id))
             }
         }
 
@@ -246,17 +246,21 @@ impl<'a> AstLowerer<'a> {
         let nodes = self
             .get_node_values_with_scope(self.ast.tree.root().id(), self.syms.get_root_scope_id());
 
-        for (id, value, _) in nodes.into_iter() {
-            if let AstNodeKind::Special(kind) = &value.kind {
+        for (id, value, _enclosing_scope) in nodes.into_iter() {
+            if let AstNodeKind::ToProcess(kind) = &value.kind {
                 match kind {
-                    SpecialForm::If => {
+                    ToProcessKind::If => {
                         let if_data = Box::new(IfData::new(&self.ast, id));
                         self.change_node_kind(id, AstNodeKind::If(if_data));
                     }
 
-                    SpecialForm::Application => {
+                    ToProcessKind::Application => {
                         let app_data = Box::new(ApplicationData::new(&self.ast, id));
                         self.change_node_kind(id, AstNodeKind::Application(app_data))
+                    }
+
+                    ToProcessKind::Let => {
+                        panic!()
                     }
 
                     _ => (),

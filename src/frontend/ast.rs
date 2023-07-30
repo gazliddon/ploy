@@ -11,8 +11,15 @@ use super::{ploytokens::SlimToken, prelude::*, syntax::SyntaxErrorKind};
 
 use crate::{
     sources::{FileSpan, SourceFile},
-    symbols::{ScopeId, SymbolScopeId},
+    symbols::{ScopeId, SymbolScopeId, SymbolId},
 };
+
+#[derive(Clone, PartialEq, Debug)]
+pub struct LetData {
+    id: AstNodeId,
+    let_scope: ScopeId,
+    bindings: ThinVec<SymbolId>,
+}
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct IfData {
@@ -46,7 +53,7 @@ pub struct ApplicationData {
 }
 
 impl ApplicationData {
-    pub fn new(ast: &Ast, id: AstNodeId) -> Self {
+    pub fn new(ast: &Ast, id: AstNodeId)-> Self {
         let mut kids = ast.tree.get(id).expect("Can't find node").children();
         let func = kids.next().unwrap().id();
         let args = kids.map(|n| n.id()).collect();
@@ -62,26 +69,57 @@ impl ApplicationData {
 }
 
 #[derive(Clone, PartialEq, Debug)]
-pub enum SpecialForm {
+pub struct LambdaBodyData {
+    scope: ScopeId,
+    params: ThinVec<SymbolScopeId>,
+    returns: (),
+}
+
+#[derive(Clone, PartialEq, Debug)]
+pub struct LambdaData {
+    id: AstNodeId,
+    bodies: ThinVec<LambdaBodyData>
+}
+
+#[derive(Clone, PartialEq, Debug)]
+pub enum ToProcessKind {
     If,
     Application,
     And,
     Or,
     Let,
+    Lambda,
+    Symbol,
 }
 
-impl Into<AstNodeKind> for SpecialForm {
+#[derive(Clone, PartialEq, Debug)]
+pub enum Literal {
+    QuotedString(String),
+    U8(u8),
+    I8(i8),
+    U32(u32),
+    I32(i32),
+    U64(u64),
+    I64(i64),
+    F32(f32),
+    F64(f64),
+    Symbol(SymbolScopeId),
+}
+
+impl Into<AstNodeKind> for ToProcessKind {
     fn into(self) -> AstNodeKind {
-        AstNodeKind::Special(self)
+        AstNodeKind::ToProcess(self)
     }
 }
 
 #[derive(Clone, PartialEq, Debug, Default)]
 pub enum AstNodeKind {
-    Special(SpecialForm),
+    ToProcess(ToProcessKind),
 
     If(Box<IfData>),
     Application(Box<ApplicationData>),
+    Symbol(SymbolScopeId),
+    AssignSymbol(SymbolScopeId),
 
     BuiltIn,
     Quoted,
@@ -90,16 +128,12 @@ pub enum AstNodeKind {
     Number,
     List,
 
-
     Null,
     Bool,
     QuotedString,
     Map,
     Pair,
     KeyWordPair,
-    Symbol,
-    InternedSymbol(SymbolScopeId),
-    AssignSymbol(SymbolScopeId),
     Scope,
     KeyWord,
     Define,
@@ -241,8 +275,10 @@ impl Ast {
     }
 
     pub fn new(parse_node: ParseNode, tokes: &[Token], source_file: SourceFile) -> Self {
+
         let tokens = tokes
             .iter()
+            .filter(|t| t.kind != TokenKind::Comment)
             .map(|t| SlimToken {
                 kind: t.kind,
                 location: t.location,
