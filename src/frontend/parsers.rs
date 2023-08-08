@@ -65,14 +65,24 @@ fn parse_symbol(input: Span) -> PResult<ParseNode> {
     parse_kind(input, [Identifier, FqnIdentifier], ToProcessKind::Symbol)
 }
 
-fn parse_builtin(input: Span) -> PResult<ParseNode> {
-    use TokenKind::*;
-    parse_kind(
-        input,
-        [Star, Plus, Minus, Slash, Equals],
-        AstNodeKind::BuiltIn,
-    )
-}
+// fn parse_builtin(input: Span) -> PResult<ParseNode> {
+//     use TokenKind::*;
+
+//     let single = |input| {
+//         parse_kind(
+//             input,
+//             [Star, Plus, Minus, Slash, Equals],
+//             AstNodeKind::BuiltIn,
+//         )
+//     };
+
+//     let (rest, matched) = alt((
+//         single,
+//         |input| parse_simple(input, "hello", AstNodeKind::BuiltIn),
+//     ))(input)?;
+
+//     Ok((rest, matched))
+// }
 
 fn match_text<'a>(t: &'a Token<'a>, txt: &str) -> bool {
     t.extra.get_text() == txt
@@ -127,9 +137,11 @@ fn parse_application_head(input: Span) -> PResult<ParseNode> {
         parse_keyword,
         parse_symbol,
         parse_application,
-        parse_builtin,
     ))(input)
-    .map_err(|mut e| { e.kind = SyntaxErrorKind::IllegalApplication.into(); e })?;
+    .map_err(|mut e| {
+        e.kind = SyntaxErrorKind::IllegalApplication.into();
+        e
+    })?;
 
     Ok((rest, matched))
 }
@@ -140,7 +152,6 @@ fn parse_application(input: Span) -> PResult<ParseNode> {
     let parsed = parse_bracketed(cut(body))(input);
 
     let (rest, (app, forms)) = parsed?;
-    
 
     let node = ParseNode::builder(ToProcessKind::Application, input, rest)
         .child(app)
@@ -231,7 +242,6 @@ pub fn parse_if(input: Span) -> PResult<ParseNode> {
         .into_iter()
         .flatten()
         .collect();
-
 
     let node = ParseNode::builder(If, input, rest).children(args);
 
@@ -510,7 +520,7 @@ pub fn parse_let(input: Span) -> PResult<ParseNode> {
         cut(pair(parse_let_args, parse_forms)),
     ))(input)?;
 
-    let node = ParseNode::builder(Let, input, rest)
+    let node = ParseNode::builder(ToProcessKind::Let, input, rest)
         .child(args)
         .children(forms)
         .build();
@@ -525,7 +535,6 @@ fn parse_atom(input: Span) -> PResult<ParseNode> {
         parse_number,
         parse_string,
         parse_bool,
-        parse_builtin,
         parse_symbol,
         parse_application,
         parse_array,
@@ -533,7 +542,6 @@ fn parse_atom(input: Span) -> PResult<ParseNode> {
         parse_quoted,
         parse_map,
     ))(input)
-
 }
 
 pub fn parse_program(input: Span) -> PResult<ParseNode> {

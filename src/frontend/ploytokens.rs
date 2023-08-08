@@ -7,6 +7,10 @@ use logos::Logos;
 use super::prelude::*;
 use super::tokens::TextSpan;
 
+// Electron has
+// positon / momentum
+// spin
+
 pub type Token<'a> = super::tokens::Token<ParseText<'a>>;
 pub(crate) type SlimToken = super::tokens::Token<FileSpan>;
 
@@ -66,29 +70,13 @@ fn to_tokens_kinds(source_file: &SourceFile) -> Vec<(TokenKind, std::ops::Range<
 fn to_tokens(source_file: &SourceFile) -> Vec<Token> {
     to_tokens_kinds(source_file)
         .into_iter()
-        .filter(|(kind,_)| kind!=&TokenKind::Comment)
-        .map(|(kind, r)| Token {
-            kind,
-            location: TextSpan::new(r.start, r.len()),
-                extra: ParseText::new(source_file.text(),r),
-        })
-        .collect()
-}
-
-fn to_slim_tokens(source_file: &SourceFile) -> Vec<SlimToken> {
-    to_tokens_kinds(source_file)
-        .into_iter()
+        .filter(|x| !x.0.is_comment())
         .map(|(kind, r)| {
-
-            let file_span = source_file
-                .get_file_span_from_offset(r.start)
-                .expect("What?");
-
-            SlimToken {
+            Token::new(
                 kind,
-                location: TextSpan::new(r.start,r.len()),
-                extra: file_span,
-            }
+                TextSpan::new(r.start, r.len()),
+                ParseText::new(source_file.text(), r),
+            )
         })
         .collect()
 }

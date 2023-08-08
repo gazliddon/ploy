@@ -182,7 +182,7 @@ impl<'a> CodeGen<'a> {
                 panic!()
             }
 
-            AstNodeKind::Let => {
+            AstNodeKind::Let(..) => {
                 panic!()
             }
 
@@ -245,16 +245,11 @@ impl<'a> CodeGen<'a> {
                         panic!()
                     }
 
-                    AstNodeKind::BuiltIn => {}
 
                     _ => panic!(),
                 }
-                panic!()
             }
 
-            AstNodeKind::BuiltIn => {
-                panic!()
-            }
 
             _ => panic!("Unandled node!"),
         }

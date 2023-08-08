@@ -5,6 +5,7 @@ use super::ast::{ApplicationData, IfData};
 use super::prelude::*;
 
 use crate::error::to_full_error;
+use crate::frontend::ast::LetData;
 use crate::sources::SourceFile;
 use crate::symbols::{ScopeId, SymbolTree};
 use crate::value;
@@ -93,9 +94,9 @@ impl<'a> AstLowerer<'a> {
         self.intern_symbol_assignments()?;
         self.intern_refs()?;
         self.create_values()?;
-        self.process_special_forms()?;
-
         self.make_node_to_scope_table();
+
+        self.process_special_forms()?;
 
         Ok(())
     }
@@ -250,17 +251,18 @@ impl<'a> AstLowerer<'a> {
             if let AstNodeKind::ToProcess(kind) = &value.kind {
                 match kind {
                     ToProcessKind::If => {
-                        let if_data = Box::new(IfData::new(&self.ast, id));
+                        let if_data = Box::new(IfData::new(self, id));
                         self.change_node_kind(id, AstNodeKind::If(if_data));
                     }
 
                     ToProcessKind::Application => {
-                        let app_data = Box::new(ApplicationData::new(&self.ast, id));
+                        let app_data = Box::new(ApplicationData::new(self, id));
                         self.change_node_kind(id, AstNodeKind::Application(app_data))
                     }
 
                     ToProcessKind::Let => {
-                        panic!()
+                        let let_data = Box::new(LetData::new(self, id));
+                        self.change_node_kind(id, AstNodeKind::Let(let_data));
                     }
 
                     _ => (),

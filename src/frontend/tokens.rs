@@ -1,17 +1,24 @@
-use logos::Logos;
+use logos::{Logos, Lexer};
 
+    // #[regex(r"([a-zA-Z-_]+[a-zA-Z0-9-_]*)(::[a-zA-Z-_]+[a-zA-Z0-9-_]*)+")]
 #[derive(Logos, Copy, Clone, Debug, PartialEq, Eq)]
 #[logos(skip r"[ \t\f\n]+")]
+
+#[logos(subpattern id_al = r"[!+\-*!a-zA-Z-_]")]
+#[logos(subpattern id_alnum = r"(?&id_al)|[0-9]")]
+#[logos(subpattern id = r"(?&id_al)+(?&id_alnum)*")]
+#[logos(subpattern pre_hex = r"(0[xX]|\$)")]
+#[logos(subpattern pre_bin = r"(0[bB]|%)")]
 pub enum TokenKind {
     Error,
 
     #[regex("[0-9][0-9_]*")]
     DecNumber,
 
-    #[regex(r"(0[xX]|\$)([a-fA-F0-9][a-fA-F0-9_]*)")]
+    #[regex(r"(?&pre_hex)[0-9a-fA-F][0-9a-fA-F_]*")]
     HexNumber,
 
-    #[regex("(0[bB])|%[0-1][0-1_]*")]
+    #[regex("(?&pre_bin)[0-1][0-1_]*")]
     BinNumber,
 
     #[token("[")]
@@ -32,11 +39,12 @@ pub enum TokenKind {
     #[token(")")]
     CloseBracket,
 
-    #[token("*")]
-    Star,
-
-    #[token("+")]
-    Plus,
+    // #[token("*")]
+    // Star,
+    // #[token("+")]
+    // Plus,
+    // #[token("-")]
+    // Minus,
 
     #[token("/")]
     Slash,
@@ -44,8 +52,6 @@ pub enum TokenKind {
     #[token("\\")]
     BackSlash,
 
-    #[token("-")]
-    Minus,
 
     #[regex(";.*\n")]
     Comment,
@@ -53,20 +59,17 @@ pub enum TokenKind {
     #[token("&")]
     Ampersand,
 
-    #[regex("[a-zA-Z-_]+[!a-zA-Z_0-9-_]*")]
+    #[regex("(?&id)")]
     Identifier,
 
-    #[regex(r"([a-zA-Z-_]+[a-zA-Z0-9-_]*)(::[a-zA-Z-_]+[a-zA-Z0-9-_]*)+")]
+    #[regex(r"(?&id)(::(?&id))+")]
     FqnIdentifier,
 
-    #[token("=")]
-    Equals,
+    // #[token("=")]
+    // Equals,
 
-    #[token("==")]
-    DoubleEqual,
-
-    #[token("!=")]
-    NotEqual,
+    // #[token("==")]
+    // DoubleEqual,
 
     #[regex("'.'")]
     Char,
@@ -89,8 +92,8 @@ pub enum TokenKind {
     #[token("^")]
     Caret,
 
-    #[token("%")]
-    Percentage,
+    // #[token("%")]
+    // Percentage,
 
     #[token("#")]
     Hash,
@@ -110,20 +113,26 @@ pub enum TokenKind {
     #[token(":")]
     Colon,
 
-    #[regex(":[a-zA-Z_]+[a-zA-Z_0-9]*")]
+    #[regex(":(?&id)")]
     KeyWord,
+}
+
+impl TokenKind {
+    pub fn is_comment(&self) -> bool {
+        self == &TokenKind::Comment
+    }
 }
 
 impl From<std::ops::Range<usize>> for TextSpan {
     fn from(value: std::ops::Range<usize>) -> Self {
         Self {
-            start : value.start,
-            len: value.len()
+            start: value.start,
+            len: value.len(),
         }
     }
 }
 
-#[derive(Clone, Debug, Copy, PartialEq,Default)]
+#[derive(Clone, Debug, Copy, PartialEq, Default)]
 pub struct TextSpan {
     pub start: usize,
     pub len: usize,
@@ -131,10 +140,10 @@ pub struct TextSpan {
 
 impl TextSpan {
     pub fn as_range(&self) -> std::ops::Range<usize> {
-        self.start..self.start+self.len
+        self.start..self.start + self.len
     }
     pub fn new(start: usize, len: usize) -> Self {
-        Self {start,len}
+        Self { start, len }
     }
 }
 
@@ -146,19 +155,22 @@ pub struct ParseText<'a> {
 }
 
 impl<'a> ParseText<'a> {
-    pub fn new(base: &'a str, range: std::ops::Range<usize> ) -> Self {
-        Self { base, start: range.start, len: range.len() }
+    pub fn new(base: &'a str, range: std::ops::Range<usize>) -> Self {
+        Self {
+            base,
+            start: range.start,
+            len: range.len(),
+        }
     }
 }
-impl <'a> ParseText<'a> {
+impl<'a> ParseText<'a> {
     pub fn get_text(&self) -> &str {
         &self.base[self.as_range()]
     }
 
     pub fn as_range(&self) -> std::ops::Range<usize> {
-        self.start..self.start+self.len
+        self.start..self.start + self.len
     }
-
 }
 
 #[derive(Clone, Debug, PartialEq, Copy)]
@@ -169,12 +181,19 @@ pub struct Token<X: Clone> {
 }
 
 impl<X: Clone> Token<X> {
-    pub fn text_span(a: &[Self]) -> std::ops::Range<usize>  {
+    pub fn new(kind: TokenKind, location: TextSpan, extra: X) -> Self {
+        Self {
+            kind,
+            location,
+            extra,
+        }
+    }
+}
+
+impl<X: Clone> Token<X> {
+    pub fn text_span(a: &[Self]) -> std::ops::Range<usize> {
         let start = a.first().unwrap().location.start;
         let end = a.last().unwrap().location.len + start;
         start..end
     }
 }
-
-
-

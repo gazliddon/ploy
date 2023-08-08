@@ -1,4 +1,4 @@
-A schemey lisp
+# Schemey lisp
 
 # Function calling notes
 * Each function needs an activation record

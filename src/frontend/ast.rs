@@ -7,11 +7,11 @@ use unraveler::{
     ParseError,
 };
 
-use super::{ploytokens::SlimToken, prelude::*, syntax::SyntaxErrorKind};
+use super::{ploytokens::SlimToken, prelude::*, syntax::{SyntaxErrorKind, AstLowerer}};
 
 use crate::{
     sources::{FileSpan, SourceFile},
-    symbols::{ScopeId, SymbolScopeId, SymbolId},
+    symbols::{ScopeId, SymbolId, SymbolScopeId},
 };
 
 #[derive(Clone, PartialEq, Debug)]
@@ -19,6 +19,16 @@ pub struct LetData {
     id: AstNodeId,
     let_scope: ScopeId,
     bindings: ThinVec<SymbolId>,
+}
+
+impl LetData {
+    pub fn new(_ast: &AstLowerer, id: AstNodeId) -> Self {
+        Self {
+            id,
+            let_scope: *_ast.id_to_scope.get(&id).unwrap(),
+            bindings: Default::default(),
+        }
+    }
 }
 
 #[derive(Clone, PartialEq, Debug)]
@@ -30,8 +40,9 @@ pub struct IfData {
 }
 
 impl IfData {
-    pub fn new(ast: &Ast, id: AstNodeId) -> Self {
-        let nth = |n| ast.get_nth_kid_id(id, n);
+    // TODO: Make this return an error
+    pub fn new(ast: &AstLowerer, id: AstNodeId) -> Self {
+        let nth = |n| ast.ast.get_nth_kid_id(id, n);
         let predicate = nth(0).expect("Missing predicate!");
         let if_true = nth(1).expect("Missing true  clause!");
         let if_false = nth(2);
@@ -53,14 +64,12 @@ pub struct ApplicationData {
 }
 
 impl ApplicationData {
-    pub fn new(ast: &Ast, id: AstNodeId)-> Self {
-        let mut kids = ast.tree.get(id).expect("Can't find node").children();
+    pub fn new(ast: &AstLowerer, id: AstNodeId) -> Self {
+        let mut kids = ast.ast.tree.get(id).expect("Can't find node").children();
         let func = kids.next().unwrap().id();
         let args = kids.map(|n| n.id()).collect();
 
-        Self {
-            id,func,args
-        }
+        Self { id, func, args }
     }
 
     pub fn arrity(&self) -> usize {
@@ -78,7 +87,7 @@ pub struct LambdaBodyData {
 #[derive(Clone, PartialEq, Debug)]
 pub struct LambdaData {
     id: AstNodeId,
-    bodies: ThinVec<LambdaBodyData>
+    bodies: ThinVec<LambdaBodyData>,
 }
 
 #[derive(Clone, PartialEq, Debug)]
@@ -120,8 +129,8 @@ pub enum AstNodeKind {
     Application(Box<ApplicationData>),
     Symbol(SymbolScopeId),
     AssignSymbol(SymbolScopeId),
+    Let(Box<LetData>),
 
-    BuiltIn,
     Quoted,
     Program,
     Array,
@@ -139,7 +148,6 @@ pub enum AstNodeKind {
     Define,
     Lambda,
     LambdaBody,
-    Let,
     Cond,
     And,
     Or,
@@ -160,7 +168,7 @@ pub enum AstNodeKind {
 
 impl AstNodeKind {
     pub fn creates_new_scope(&self) -> bool {
-        matches!(self, AstNodeKind::Lambda | AstNodeKind::Let)
+        matches!(self, AstNodeKind::Lambda | AstNodeKind::Let(..) | AstNodeKind::ToProcess(ToProcessKind::Let) | AstNodeKind::ToProcess(ToProcessKind::Lambda))
     }
 }
 
@@ -275,7 +283,6 @@ impl Ast {
     }
 
     pub fn new(parse_node: ParseNode, tokes: &[Token], source_file: SourceFile) -> Self {
-
         let tokens = tokes
             .iter()
             .filter(|t| t.kind != TokenKind::Comment)

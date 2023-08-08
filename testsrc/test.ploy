@@ -1,11 +1,15 @@
-(def v3 1)
-(def z (fn [a b] (+ a b)))
+(def !v3 1)
+(def z (fn [a b] (!v3 a b)))
+
+(def y {:hello 10})
 
 (def add (fn [a b]
             (let [x (z (:hello a) 10)
                   y 1
                   z 3]
-                (v3 a y z))))
+                (!v3 a y z))))
+
+(add 0xfF)
 
 ; What next
 
