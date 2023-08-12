@@ -5,7 +5,6 @@ use crate::frontend::FrontEndError;
 use crate::sources::{SourcesError, FileSpan, SourceFile};
 
 #[derive(thiserror::Error)]
-
 pub enum PloyErrorKind {
     #[error(transparent)]
     Cli(#[from] CliErrorKind),
