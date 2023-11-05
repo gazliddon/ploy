@@ -419,6 +419,7 @@ dependencies = [
  "itertools",
  "lazy_static",
  "logos",
+ "num-traits",
  "pretty_assertions",
  "rand",
  "regex",

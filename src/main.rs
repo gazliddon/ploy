@@ -11,7 +11,6 @@ use std::path::Path;
 
 use frontend::FrontEndError;
 use thiserror::Error;
-
 use frontend::FrontEndCtx;
 use opts::Opts;
 
